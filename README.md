@@ -14,7 +14,7 @@ Add `repository` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  repository:
+  repository: ^3.0.0
 ```
 
 Install it:
