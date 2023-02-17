@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
-import 'package:repository/src/infra/repository_cache_service.dart';
+import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// A [Repository] is a class that holds data and provides a stream.
@@ -43,13 +43,9 @@ abstract class Repository<Data> {
   @protected
   final _controller = BehaviorSubject<Data>();
 
-  // TODO(@dizyann): Set a default implementation for the cache service.
+  // TODO(@dizyann): Set a default implementation for the cache storage.
   /// Monostate cache service to save data locally.
-  static late RepositoryCacheService _cache;
-
-  /// Getter for the cache service used from inherited classes.
-  @protected
-  RepositoryCacheService get cache => _cache;
+  static late RepositoryCacheStorage cache;
 
   /// Getter for the last value of the stream.
   /// Returns null if the stream is empty.
@@ -73,7 +69,7 @@ abstract class Repository<Data> {
   // Default methods
 
   /// Clears the cache.
-  Future<void> clearCache() => _cache.delete(key: key);
+  Future<void> clearCache() => cache.delete(key: key);
 
   /// Refreshes the repository ignoring cache.
   Future<void> refresh() => resolve(useCache: false);
