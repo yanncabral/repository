@@ -1,6 +1,6 @@
 name: repository
 description: The all-in-one solution for fetching remote data from a REST API using the power of caching and auto refresh.
-version: 0.1.0+1
+version: 3.0.0+1
 
 
 environment:
@@ -10,7 +10,7 @@ dev_dependencies:
   mocktail: ^0.3.0
   test: ^1.19.2
   very_good_analysis: ^4.0.0
-  
+
 dependencies:
   meta: ^1.9.0
   rxdart: ^0.27.7
