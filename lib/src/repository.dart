@@ -71,7 +71,7 @@ abstract class Repository<Data> {
   /// Clears the cache.
   Future<void> clearCache() => cache.delete(key: key);
 
-  /// Refreshes the repository ignoring cache.
+  /// Refreshes the repository from remote datasource, ignoring cache.
   Future<void> refresh() => resolve(useCache: false);
 
   /// Resolves the repository.
