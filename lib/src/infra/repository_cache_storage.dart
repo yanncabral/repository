@@ -7,7 +7,10 @@ abstract class RepositoryCacheStorage {
   /// {@macro repository_cache_storage}
   const RepositoryCacheStorage();
 
-  /// Id of the cache storage
+  /// An id used to identify the cache storage.
+  /// This is useful if you have multiple repositories that use the same key.
+  /// For example, you don't want to get the same cached data
+  /// from a different authentication sessions.
   String get id;
 
   /// Delete a value from the cache
