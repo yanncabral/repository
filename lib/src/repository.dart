@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
+import 'package:repository/src/external/shared_preferences_repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -43,9 +44,8 @@ abstract class Repository<Data> {
   @protected
   final _controller = BehaviorSubject<Data>();
 
-  // TODO(@dizyann): Set a default implementation for the cache storage.
   /// Monostate cache service to save data locally.
-  static late RepositoryCacheStorage cache;
+  static const cache = SharedPreferencesRepositoryCacheStorage();
 
   /// Getter for the last value of the stream.
   /// Returns null if the stream is empty.
