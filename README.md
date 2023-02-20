@@ -6,6 +6,16 @@
 
 The all-in-one solution for fetching remote data from a REST API using the power of caching and auto refresh.
 
+## Warning ⚠️
+
+This package is currently under heavy development and is **not yet ready for production use**. It is being actively worked on by our development team, and we are constantly adding new features and making improvements.
+
+While we are working hard to make this package as stable and reliable as possible, there may be bugs or issues that arise as new code is added or existing code is modified. We encourage you to report any issues you encounter during this development process, and we will do our best to address them as quickly as possible.
+
+As we continue to develop this package, we may make breaking changes to the API or other aspects of the package. We will do our best to document any such changes and provide guidance on how to update your code accordingly.
+
+We appreciate your patience and understanding as we work to bring this package to maturity. We are committed to delivering a high-quality, reliable package that meets the needs of our users, and we believe that with your feedback and support, we can achieve that goal.
+
 ## Installation 💻
 
 **❗ In order to start using Repository you must have the [Dart SDK][dart_install_link] installed on your machine.**
