@@ -13,13 +13,13 @@ abstract class RepositoryCacheStorage {
   /// from a different authentication sessions.
   String get id;
 
-  /// Delete a value from the cache
+  /// Delete a value from the cache.
   Future<void> delete({required String key});
 
-  /// Read a value from the cache
+  /// Read a value from the cache.
   Future<String?> read({required String key});
 
-  /// Write a value to the cache
+  /// Write a value to the cache.
   Future<void> write({
     required String key,
     required String value,

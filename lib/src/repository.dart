@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
+import 'package:repository/src/external/developer_repository_logger.dart';
 import 'package:repository/src/external/shared_preferences_repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
+import 'package:repository/src/infra/repository_logger.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// A [Repository] is a class that holds data and provides a stream.
@@ -45,13 +47,18 @@ abstract class Repository<Data> {
   final _controller = BehaviorSubject<Data>();
 
   /// Monostate cache service to save data locally.
-  static const cache = SharedPreferencesRepositoryCacheStorage();
+  static RepositoryCacheStorage cache =
+      const SharedPreferencesRepositoryCacheStorage();
+
+  /// Monostate logger service to log messages.
+  static RepositoryLogger logger = const DefaultRepositoryLogger();
 
   /// Getter for the last value of the stream.
   /// Returns null if the stream is empty.
   Data? get value {
     try {
       return _controller.value;
+      // ignore: avoid_catching_errors
     } on ValueStreamError {
       return null;
     }
