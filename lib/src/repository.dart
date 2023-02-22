@@ -119,6 +119,10 @@ abstract class Repository<Data> {
   @protected
   String get key;
 
+  /// The tag used to differ cache from same key repositories.
+  @protected
+  String? get tag;
+
   /// The stream of the repository.
   /// This stream will emit the data every time it changes.
   /// The data will be cached locally.
