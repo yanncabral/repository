@@ -1,7 +1,11 @@
 import 'dart:io';
 
+/// A type alias for bearer token String.
+/// Notice that this is just the token, without the `Bearer` prefix.
+typedef BearerToken = String;
+
 /// {@template repository_http_client}
-/// Abstract class for HTTP client to be used in http `Repositores`.
+/// Abstract class for HTTP client to be used in http `Repositories`.
 /// You can use this class to create your own HTTP client,
 /// or just use the default one.
 /// {@endtemplate}
@@ -10,7 +14,7 @@ abstract class RepositoryHttpClient {
   const RepositoryHttpClient();
 
   /// Makes a HTTP `get` request using [HttpClientRequest].
-  Future<RepositoryHttpResponse?> get({
+  Future<RepositoryHttpResponse> get({
     required RepositoryHttpRequest request,
   });
 }
@@ -47,6 +51,7 @@ class RepositoryHttpRequest {
   const RepositoryHttpRequest({
     required this.url,
     this.headers = const {},
+    this.bearerTokenBuilder,
   });
 
   /// The url of the request.
@@ -54,4 +59,7 @@ class RepositoryHttpRequest {
 
   /// The headers of the request.
   final Map<String, String> headers;
+
+  /// Builds the bearer token if it's needed.
+  final BearerToken Function()? bearerTokenBuilder;
 }
