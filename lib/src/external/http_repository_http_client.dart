@@ -6,9 +6,12 @@ import 'package:repository/src/infra/repository_logger.dart';
 
 final _client = http.Client();
 
+/// {@template http_repository_http_client}
+/// A [RepositoryHttpClient] that uses `http` package.
+/// {@endtemplate}
 class HttpRepositoryHttpClient implements RepositoryHttpClient {
   @override
-  Future<RepositoryHttpResponse?> get({
+  Future<RepositoryHttpResponse> get({
     required RepositoryHttpRequest request,
   }) async {
     try {
@@ -27,7 +30,8 @@ class HttpRepositoryHttpClient implements RepositoryHttpClient {
         'ClientException: ${request.url}',
         level: RepositoryLoggingLevel.error,
       );
-      return null;
+
+      rethrow;
     }
   }
 }
