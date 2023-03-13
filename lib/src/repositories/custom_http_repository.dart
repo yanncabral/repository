@@ -21,6 +21,12 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
     this.tag,
   });
 
+  /// The tag of the repository.
+  /// This is used to identify the repository in the cache.
+  /// If the tag is not null, the repository will use the tag to
+  /// create unique keys for the cache.
+  /// A commom use case for this is when you want to cache for different
+  /// users. In this case, you can use the user id (e.g. e-mail) as the tag.
   @override
   final String? tag;
 
@@ -66,7 +72,7 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
       final cached = await Repository.cache.read(key: key);
       if (cached != null) {
         try {
-          /// Add the data from the cache to the stream
+          /// Add the data from the cache to the stream.
           /// We don't want to refresh the stream, so we set [refresh] to false.
           /// This will prevent the stream from enter in a loop.
           /// We also use [unawaited] to prevent the future from being awaited.
@@ -156,6 +162,12 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
   String get key {
     /// We combine the `tag` and the `endpoint` to create a unique key
     /// and we use the md5 hash to create a unique but "short" key.
-    return md5.convert('$tag-$endpoint'.codeUnits).toString();
+    /// When the `tag` is null, we use only the `endpoint` as the key.
+
+    if (tag == null) {
+      return md5.convert(endpoint.toString().codeUnits).toString();
+    } else {
+      return md5.convert('$tag,$endpoint'.codeUnits).toString();
+    }
   }
 }

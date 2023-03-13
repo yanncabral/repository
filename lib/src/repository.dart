@@ -55,14 +55,7 @@ abstract class Repository<Data> {
 
   /// Getter for the last value of the stream.
   /// Returns null if the stream is empty.
-  Data? get value {
-    try {
-      return _controller.value;
-      // ignore: avoid_catching_errors
-    } on ValueStreamError {
-      return null;
-    }
-  }
+  Data? currentValue;
 
   /// Disposes the repository. You should call this method when you're done
   /// using the repository.
@@ -92,11 +85,13 @@ abstract class Repository<Data> {
   /// The [resolver] function takes the current data and returns the new data.
   /// The new data will be added to the stream and the repository will be
   /// refreshed.
+  /// This method is useful if you want to use Optimistic UI.
+  /// You can update the data to the repository and refresh in a row.
   Future<void> update(Data Function(Data data) resolver) async {
     final lastData = _controller.value;
     final newData = resolver(lastData);
-    _controller.add(newData);
-    await refresh();
+
+    await add(data: newData);
   }
 
   /// Adds data to the repository and refreshes it.
@@ -105,6 +100,8 @@ abstract class Repository<Data> {
   /// You can add the new data to the repository and refresh in a row.
   Future<void> add({required Data data, bool refresh = true}) async {
     _controller.add(data);
+    currentValue = data;
+
     if (refresh) {
       await this.refresh();
     }
