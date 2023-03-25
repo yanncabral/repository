@@ -42,7 +42,7 @@ abstract class Repository<Data> {
   Timer? timer;
 
   /// Stream controller to propagate data to the stream.
-  /// We're using a BehaviorSubject so we can get the last value.
+  /// It's using a BehaviorSubject so we can get the last value.
   @protected
   final _controller = BehaviorSubject<Data>();
 
@@ -87,9 +87,8 @@ abstract class Repository<Data> {
   /// refreshed.
   /// This method is useful if you want to use Optimistic UI.
   /// You can update the data to the repository and refresh in a row.
-  Future<void> update(Data Function(Data data) resolver) async {
-    final lastData = _controller.value;
-    final newData = resolver(lastData);
+  Future<void> update(Data Function(Data? data) resolver) async {
+    final newData = resolver.call(currentValue);
 
     await add(data: newData);
   }
@@ -116,7 +115,8 @@ abstract class Repository<Data> {
   @protected
   String get key;
 
-  /// The tag used to differ cache from same key repositories.
+  /// The tag used to differ cache from same key repositories. It's commonly
+  /// used to build the `key` property.
   @protected
   String? get tag;
 
@@ -125,5 +125,5 @@ abstract class Repository<Data> {
   /// The data will be cached locally.
   /// The data will be refreshed every [autoRefreshInterval].
   /// The data will be refreshed when [refresh] is called.
-  Stream<Data> get stream => _controller.stream;
+  late final Stream<Data> stream = _controller.stream;
 }
