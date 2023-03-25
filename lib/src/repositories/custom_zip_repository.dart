@@ -26,8 +26,12 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
   }
 
   @override
-  Stream<Data> get stream =>
-      ZipStream(repositories.map((e) => e.stream), zipper);
+  Stream<Data> get stream => _stream;
+
+  late final Stream<Data> _stream = CombineLatestStream(
+    repositories.map((e) => e.stream),
+    zipper,
+  );
 
   /// A list of repositories that will be zipped.
   List<Repository<dynamic>> get repositories;
