@@ -1,9 +1,14 @@
+import 'package:repository/src/external/developer_repository_logger.dart';
+
 /// {@template repository_logging}
 /// Abstract class for logging in repositories.
 /// You can use this class to create your own logger,
 /// or just use the default one.
 /// {@endtemplate}
 abstract class RepositoryLogger {
+  /// {@macro repository_logging}
+  const factory RepositoryLogger.dev() = DeveloperRepositoryLogger;
+
   /// {@macro repository_logging}
   const RepositoryLogger({
     this.level = RepositoryLoggingLevel.error,

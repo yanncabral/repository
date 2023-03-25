@@ -1,3 +1,5 @@
+import 'package:repository/src/external/shared_preferences_repository_cache_storage.dart';
+
 /// {@template repository_cache_storage}
 /// An abstract storage to cache data from repositories.
 /// It is used by the `Repository` class and wraps
@@ -6,6 +8,10 @@
 abstract class RepositoryCacheStorage {
   /// {@macro repository_cache_storage}
   const RepositoryCacheStorage();
+
+  /// {@macro shared_preferences_repository_cache_storage}
+  const factory RepositoryCacheStorage.sharedPreferences() =
+      SharedPreferencesRepositoryCacheStorage;
 
   /// An id used to identify the cache storage.
   /// This is useful if you have multiple repositories that use the same key.

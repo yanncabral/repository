@@ -7,9 +7,9 @@ import 'package:repository/src/infra/repository_logger.dart';
 /// This is the default logger used by `Repository`.
 /// It's not recommended to use this logger in production.
 /// {@endtemplate}
-class DefaultRepositoryLogger extends RepositoryLogger {
+class DeveloperRepositoryLogger extends RepositoryLogger {
   /// {@macro default_repository_logger}
-  const DefaultRepositoryLogger();
+  const DeveloperRepositoryLogger();
 
   @override
   void call(

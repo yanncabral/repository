@@ -1,11 +1,22 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
-import 'package:repository/src/external/developer_repository_logger.dart';
-import 'package:repository/src/external/shared_preferences_repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_logger.dart';
 import 'package:rxdart/rxdart.dart';
+
+/// A [Repository] that can be backpropagated to a remote source.
+/// It is useful when you want to save data to a remote source
+/// though a repository.
+/// For example, you can use this mixin to save data to a remote API
+/// when a user updates a profile.
+mixin PropagatingRepositoryMixin<Data> on Repository<Data> {
+  /// Converts data to a JSON compatible format.
+  dynamic toJson(Data data);
+
+  /// Propagates data to a remote source and updates the stream.
+  Future<void> propagate(Data data);
+}
 
 /// A [Repository] is a class that holds data and provides a stream.
 /// It can be used to fetch data from a remote source, cache it, and provide a
@@ -48,10 +59,10 @@ abstract class Repository<Data> {
 
   /// Monostate cache service to save data locally.
   static RepositoryCacheStorage cache =
-      const SharedPreferencesRepositoryCacheStorage();
+      const RepositoryCacheStorage.sharedPreferences();
 
   /// Monostate logger service to log messages.
-  static RepositoryLogger logger = const DefaultRepositoryLogger();
+  static RepositoryLogger logger = const RepositoryLogger.dev();
 
   /// Getter for the last value of the stream.
   /// Returns null if the stream is empty.
@@ -88,22 +99,27 @@ abstract class Repository<Data> {
   /// This method is useful if you want to use Optimistic UI.
   /// You can update the data to the repository and refresh in a row.
   Future<void> update(Data Function(Data? data) resolver) async {
+    // Call the resolver function to get the new data.
     final newData = resolver.call(currentValue);
+    // Add the new data to the repository without refreshing yet.
+    await emit(data: newData);
 
-    await add(data: newData);
+    // It's just `this` is a getter and the if below will not work
+    // if we don't use it as a local variable.
+    final self = this;
+
+    if (self is PropagatingRepositoryMixin<Data>) {
+      await self.propagate(newData);
+    }
+
+    // Refresh the repository.
+    await refresh();
   }
 
-  /// Adds data to the repository and refreshes it.
-  /// If [refresh] is false, the repository will not be refreshed.
-  /// This method is useful if you want to use Optimistic UI.
-  /// You can add the new data to the repository and refresh in a row.
-  Future<void> add({required Data data, bool refresh = true}) async {
+  /// Emits a new data to the repository.
+  Future<void> emit({required Data data}) async {
     _controller.add(data);
     currentValue = data;
-
-    if (refresh) {
-      await this.refresh();
-    }
   }
 
   // Abstract methods and properties

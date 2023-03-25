@@ -73,12 +73,10 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
       if (cached != null) {
         try {
           /// Add the data from the cache to the stream.
-          /// We don't want to refresh the stream, so we set [refresh] to false.
-          /// This will prevent the stream from enter in a loop.
           /// We also use [unawaited] to prevent the future from being awaited.
           /// See [Repository.add].
           /// See also [Repository.refresh].
-          unawaited(add(data: fromJson(jsonDecode(cached)), refresh: false));
+          unawaited(emit(data: fromJson(jsonDecode(cached))));
         } on FormatException catch (_) {
           /// If the data is invalid, clear the cache.
           /// In this case, we don't need to use [unawaited] because
@@ -113,7 +111,7 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
           /// Add the data to the stream and
           /// cache the data. We can do this in parallel.
           await Future.wait([
-            add(data: fromJson(result), refresh: false),
+            emit(data: fromJson(result)),
             Repository.cache.write(
               key: key,
               value: jsonEncode(result),
@@ -121,7 +119,8 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
           ]);
         } else {
           Repository.logger(
-            'Failed to resolve [$key]. status code: ${response.statusCode}',
+            'Failed to resolve [$endpoint]. '
+            'status code: ${response.statusCode}',
           );
           await onErrorStatusCode(response.statusCode);
         }
@@ -161,7 +160,7 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
   @override
   String get key {
     /// We combine the `tag` and the `endpoint` to create a unique key
-    /// and we use the md5 hash to create a unique but "short" key.
+    /// and we use the md5 hash to create a unique but "shorter" key.
     /// When the `tag` is null, we use only the `endpoint` as the key.
 
     if (tag == null) {
