@@ -10,29 +10,27 @@ class SharedPreferencesRepositoryCacheStorage extends RepositoryCacheStorage {
   /// {@macro shared_preferences_repository_cache_storage}
   const SharedPreferencesRepositoryCacheStorage();
 
-  @override
-  String get id => throw UnimplementedError();
-
   static late final SharedPreferences? _instance;
 
-  String _generateContextBasedKey(String key) {
-    return 'repository/$id/$key';
-  }
+  /// Hashes a key to be used as a cache key.
+  String _generateContextBasedKey(String key) => hash(key);
 
   @override
   Future<void> delete({required String key}) async {
     _instance ??= await SharedPreferences.getInstance();
-    await _instance?.remove(_generateContextBasedKey(key));
+    final cbk = _generateContextBasedKey(key);
+    await _instance?.remove(_generateContextBasedKey(cbk));
   }
 
   @override
   Future<String?> read({required String key}) async {
     _instance ??= await SharedPreferences.getInstance();
+    final cbk = _generateContextBasedKey(key);
     try {
-      return _instance?.getString(_generateContextBasedKey(key));
+      return _instance?.getString(cbk);
     } catch (e) {
       log('[Repository] Error reading from cache: $e. Clearing cache...');
-      await _instance?.remove(key);
+      await _instance?.remove(cbk);
 
       return null;
     }
@@ -40,7 +38,9 @@ class SharedPreferencesRepositoryCacheStorage extends RepositoryCacheStorage {
 
   @override
   Future<void> write({required String key, required String value}) async {
+    final cbk = _generateContextBasedKey(key);
+
     _instance ??= await SharedPreferences.getInstance();
-    await _instance?.setString(_generateContextBasedKey(key), value);
+    await _instance?.setString(_generateContextBasedKey(cbk), value);
   }
 }

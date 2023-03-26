@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
+import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:repository/src/external/http_repository_http_client.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
@@ -76,7 +76,12 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
           /// We also use [unawaited] to prevent the future from being awaited.
           /// See [Repository.add].
           /// See also [Repository.refresh].
-          unawaited(emit(data: fromJson(jsonDecode(cached))));
+          unawaited(
+            emit(
+              data: fromJson(jsonDecode(cached)),
+              datasource: RepositoryDatasource.local,
+            ),
+          );
         } on FormatException catch (_) {
           /// If the data is invalid, clear the cache.
           /// In this case, we don't need to use [unawaited] because
@@ -111,7 +116,10 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
           /// Add the data to the stream and
           /// cache the data. We can do this in parallel.
           await Future.wait([
-            emit(data: fromJson(result)),
+            emit(
+              data: fromJson(result),
+              datasource: RepositoryDatasource.remote,
+            ),
             Repository.cache.write(
               key: key,
               value: jsonEncode(result),
@@ -164,9 +172,9 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
     /// When the `tag` is null, we use only the `endpoint` as the key.
 
     if (tag == null) {
-      return md5.convert(endpoint.toString().codeUnits).toString();
+      return endpoint.toString();
     } else {
-      return md5.convert('$tag,$endpoint'.codeUnits).toString();
+      return '$tag,$endpoint';
     }
   }
 }

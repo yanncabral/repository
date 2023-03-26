@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
+import 'package:repository/src/domain/entities/data_source.dart';
+import 'package:repository/src/domain/entities/states.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_logger.dart';
 import 'package:rxdart/rxdart.dart';
@@ -11,9 +13,6 @@ import 'package:rxdart/rxdart.dart';
 /// For example, you can use this mixin to save data to a remote API
 /// when a user updates a profile.
 mixin PropagatingRepositoryMixin<Data> on Repository<Data> {
-  /// Converts data to a JSON compatible format.
-  dynamic toJson(Data data);
-
   /// Propagates data to a remote source and updates the stream.
   Future<void> propagate(Data data);
 }
@@ -55,7 +54,7 @@ abstract class Repository<Data> {
   /// Stream controller to propagate data to the stream.
   /// It's using a BehaviorSubject so we can get the last value.
   @protected
-  final _controller = BehaviorSubject<Data>();
+  final _controller = BehaviorSubject<RepositoryState<Data>>();
 
   /// Monostate cache service to save data locally.
   static RepositoryCacheStorage cache =
@@ -102,7 +101,10 @@ abstract class Repository<Data> {
     // Call the resolver function to get the new data.
     final newData = resolver.call(currentValue);
     // Add the new data to the repository without refreshing yet.
-    await emit(data: newData);
+    await emit(
+      data: newData,
+      datasource: RepositoryDatasource.optimistic,
+    );
 
     // It's just `this` is a getter and the if below will not work
     // if we don't use it as a local variable.
@@ -117,8 +119,17 @@ abstract class Repository<Data> {
   }
 
   /// Emits a new data to the repository.
-  Future<void> emit({required Data data}) async {
-    _controller.add(data);
+  @protected
+  Future<void> emit({
+    required Data data,
+    required RepositoryDatasource datasource,
+  }) async {
+    _controller.add(
+      RepositoryState.ready(
+        data: data,
+        source: datasource,
+      ),
+    );
     currentValue = data;
   }
 
@@ -141,5 +152,5 @@ abstract class Repository<Data> {
   /// The data will be cached locally.
   /// The data will be refreshed every [autoRefreshInterval].
   /// The data will be refreshed when [refresh] is called.
-  late final Stream<Data> stream = _controller.stream;
+  late final Stream<RepositoryState<Data>> stream = _controller.stream;
 }

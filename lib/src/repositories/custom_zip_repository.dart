@@ -1,3 +1,5 @@
+import 'package:repository/src/domain/entities/data_source.dart';
+import 'package:repository/src/domain/entities/states.dart';
 import 'package:repository/src/repository.dart';
 import 'package:rxdart/streams.dart';
 
@@ -11,7 +13,7 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
   CustomZipRepository({super.autoRefreshInterval, super.resolveOnCreate});
 
   @override
-  String get key => repositories.map((e) => e.key).join('-');
+  String get key => repositories.map((r) => r.key).join('-');
 
   @override
   Future<void> resolve({bool useCache = true, bool useRemote = true}) {
@@ -26,12 +28,17 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
   }
 
   @override
-  Stream<Data> get stream => _stream;
+  Stream<RepositoryState<Data>> get stream => _stream;
 
-  late final Stream<Data> _stream = CombineLatestStream(
+  late final Stream<RepositoryState<Data>> _stream = ZipStream(
     repositories.map((e) => e.stream),
-    zipper,
-  );
+    (values) {
+      return RepositoryState.ready(
+        data: zipper(values),
+        source: RepositoryDatasource.remote,
+      );
+    },
+  ).asBroadcastStream();
 
   /// A list of repositories that will be zipped.
   List<Repository<dynamic>> get repositories;

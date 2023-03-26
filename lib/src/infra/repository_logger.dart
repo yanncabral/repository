@@ -7,12 +7,12 @@ import 'package:repository/src/external/developer_repository_logger.dart';
 /// {@endtemplate}
 abstract class RepositoryLogger {
   /// {@macro repository_logging}
-  const factory RepositoryLogger.dev() = DeveloperRepositoryLogger;
-
-  /// {@macro repository_logging}
   const RepositoryLogger({
     this.level = RepositoryLoggingLevel.error,
   });
+
+  /// {@macro repository_logging}
+  const factory RepositoryLogger.dev() = DeveloperRepositoryLogger;
 
   /// Defines the level of logging. Defaults to [RepositoryLoggingLevel.error].
   final RepositoryLoggingLevel level;

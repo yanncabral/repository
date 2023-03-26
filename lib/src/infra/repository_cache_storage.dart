@@ -1,3 +1,5 @@
+import 'package:crypto/crypto.dart';
+import 'package:meta/meta.dart';
 import 'package:repository/src/external/shared_preferences_repository_cache_storage.dart';
 
 /// {@template repository_cache_storage}
@@ -13,11 +15,9 @@ abstract class RepositoryCacheStorage {
   const factory RepositoryCacheStorage.sharedPreferences() =
       SharedPreferencesRepositoryCacheStorage;
 
-  /// An id used to identify the cache storage.
-  /// This is useful if you have multiple repositories that use the same key.
-  /// For example, you don't want to get the same cached data
-  /// from a different authentication sessions.
-  String get id;
+  /// Hashes a key to be used as a cache key.
+  @protected
+  String hash(String key) => md5.convert(key.codeUnits).toString();
 
   /// Delete a value from the cache.
   Future<void> delete({required String key});
