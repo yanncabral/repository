@@ -2,4 +2,8 @@
 /// using the power of caching and auto refresh.
 library repository;
 
+export 'src/repositories/custom_http_repository.dart';
+export 'src/repositories/custom_zip_repository.dart';
+export 'src/repositories/http_repository.dart';
+export 'src/repositories/zip_repository.dart';
 export 'src/repository.dart';
