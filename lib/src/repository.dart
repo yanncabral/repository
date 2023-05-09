@@ -55,9 +55,9 @@ abstract class Repository<Data> {
   @protected
   final _controller = BehaviorSubject<RepositoryState<Data>>();
 
-  /// Monostate cache service to save data locally.
-  static RepositoryCacheStorage cache =
-      const RepositoryCacheStorage.sharedPreferences();
+  /// Monostate cache service to save data locally. It should be initialized
+  /// before using any repository.
+  static late RepositoryCacheStorage storage;
 
   /// Monostate logger service to log messages.
   static RepositoryLogger logger = const RepositoryLogger.dev();
@@ -80,7 +80,7 @@ abstract class Repository<Data> {
     final state = _controller.valueOrNull;
 
     if (state == null) {
-      return const RepositoryState.empty();
+      return RepositoryState<Data>.empty();
     } else {
       return state;
     }
@@ -102,12 +102,12 @@ abstract class Repository<Data> {
   // Default methods
 
   /// Clears the cache.
-  Future<void> clearCache() => cache.delete(key: key);
+  Future<void> clearCache() => storage.delete(key: key);
 
   /// Gets the data from the cache, if it exists, and emits it to the stream.
   Future<void> hydrate({bool refreshAfter = true}) async {
     try {
-      final cachedDataString = await Repository.cache.read(key: key);
+      final cachedDataString = await Repository.storage.read(key: key);
 
       if (cachedDataString != null) {
         final data = fromJson(cachedDataString);
@@ -152,7 +152,7 @@ abstract class Repository<Data> {
       datasource: RepositoryDatasource.remote,
     );
     // Save the raw data in the cache
-    await cache.write(key: key, value: rawData);
+    await storage.write(key: key, value: rawData);
     // Log the time it took to refresh
     final after = DateTime.now();
     final timeSpent = after.difference(before);
@@ -179,7 +179,6 @@ abstract class Repository<Data> {
       data: newData,
       datasource: RepositoryDatasource.optimistic,
     );
-
     // It's just 'cause `this` is a getter, so the 'if' below will not work
     // if we don't use it as a local variable.
     final self = this;

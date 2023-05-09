@@ -1,6 +1,5 @@
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
-import 'package:repository/src/external/shared_preferences_repository_cache_storage.dart';
 
 /// {@template repository_cache_storage}
 /// An abstract storage to cache data from repositories.
@@ -11,13 +10,9 @@ abstract class RepositoryCacheStorage {
   /// {@macro repository_cache_storage}
   const RepositoryCacheStorage();
 
-  /// {@macro shared_preferences_repository_cache_storage}
-  const factory RepositoryCacheStorage.sharedPreferences() =
-      SharedPreferencesRepositoryCacheStorage;
-
   /// Hashes a key to be used as a cache key.
   @protected
-  String hash(String key) => md5.convert(key.codeUnits).toString();
+  String hashKey(String key) => md5.convert(key.codeUnits).toString();
 
   /// Delete a value from the cache.
   Future<void> delete({required String key});
@@ -30,4 +25,7 @@ abstract class RepositoryCacheStorage {
     required String key,
     required String value,
   });
+
+  /// Clears the cache.
+  Future<void> clear();
 }

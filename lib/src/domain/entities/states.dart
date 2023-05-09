@@ -1,9 +1,10 @@
+import 'package:equatable/equatable.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
 
 /// {@template repository_state}
 /// A generic class that holds a value of the current state of the repository.
 /// {@endtemplate}
-abstract class RepositoryState<Data> {
+abstract class RepositoryState<Data> extends Equatable {
   /// {@macro repository_state}
   const RepositoryState();
 
@@ -54,6 +55,9 @@ class RepositoryStateEmpty<Data> extends RepositoryState<Data> {
 
   /// Whether the repository is loading data.
   final bool isLoading;
+
+  @override
+  List<Object?> get props => [isLoading, Data.runtimeType];
 }
 
 /// {@template repository_state_ready}
@@ -72,4 +76,7 @@ class RepositoryStateReady<Data> extends RepositoryState<Data> {
 
   /// The source of the data.
   final RepositoryDatasource source;
+
+  @override
+  List<Object?> get props => [data, source, Data.runtimeType];
 }
