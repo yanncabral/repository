@@ -37,7 +37,15 @@ class RepositoryHttpResponse {
   final Map<String, String> headers;
 
   /// The body of the response.
-  final dynamic body;
+  final String body;
+
+  @override
+  String toString() {
+    return 'RepositoryHttpResponse{'
+        'statusCode: $statusCode, '
+        'headers: $headers, body: $body'
+        '}';
+  }
 }
 
 /// {@template repository_http_request}
@@ -62,4 +70,9 @@ class RepositoryHttpRequest {
 
   /// Builds the bearer token if it's needed.
   final BearerToken Function()? bearerTokenBuilder;
+
+  @override
+  String toString() {
+    return 'RepositoryHttpRequest{url: $url, headers: $headers}';
+  }
 }
