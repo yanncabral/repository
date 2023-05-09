@@ -11,6 +11,7 @@ dev_dependencies:
   very_good_analysis: ^4.0.0
 
 dependencies:
+  collection: ^1.17.0
   crypto: ^3.0.2
   http: ^0.13.5
   logging: ^1.1.1
