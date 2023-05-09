@@ -4,7 +4,8 @@ import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// {@template shared_preferences_repository_cache_storage}
-/// A [RepositoryCacheStorage] that uses `shared_preferences` to cache data.
+/// A [RepositoryCacheStorage] that uses `shared_preferences` library
+/// to cache data locally.
 /// {@endtemplate}
 class SharedPreferencesRepositoryCacheStorage extends RepositoryCacheStorage {
   /// {@macro shared_preferences_repository_cache_storage}
