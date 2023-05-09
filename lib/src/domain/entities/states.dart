@@ -20,7 +20,13 @@ abstract class RepositoryState<Data> {
     required RepositoryDatasource source,
   }) = RepositoryStateReady<Data>;
 
-  /// Maps the current state to a new state.
+  /// Returns the value of the current state of the repository.
+  /// It can be either [RepositoryStateEmpty] or [RepositoryStateReady].
+  /// It throws an [Exception] if the state is not handled.
+  ///
+  /// The [map] method is useful when you want to handle the state of the
+  /// repository. For example you can map empty state to a loading
+  /// indicator and ready state to a list of items.
   Result map<Result>({
     required Result Function(RepositoryStateEmpty<Data> state) empty,
     required Result Function(RepositoryStateReady<Data> state) ready,
