@@ -4,6 +4,7 @@ import 'package:meta/meta.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:repository/src/domain/entities/states.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
+import 'package:repository/src/infra/repository_fiber.dart';
 import 'package:repository/src/infra/repository_logger.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -29,9 +30,7 @@ abstract class Repository<Data> {
     this.autoRefreshInterval,
     bool resolveOnCreate = true,
   }) {
-    if (resolveOnCreate) {
-      resolve();
-    }
+    hydrate(refreshAfter: resolveOnCreate);
 
     if (autoRefreshInterval != null) {
       timer = Timer.periodic(
@@ -65,7 +64,31 @@ abstract class Repository<Data> {
 
   /// Getter for the last value of the stream.
   /// Returns null if the stream is empty.
-  Data? currentValue;
+  Data? get currentValue {
+    return currentState.map(
+      empty: (_) => null,
+      ready: (state) => state.data,
+    );
+  }
+
+  /// Returns the current state of the repository.
+  ///
+  /// If the repository does not have any data, this method returns
+  /// [RepositoryState.empty]. Otherwise, it returns a [RepositoryState]
+  /// instance containing the current data.
+  RepositoryState<Data> get currentState {
+    final state = _controller.valueOrNull;
+
+    if (state == null) {
+      return const RepositoryState.empty();
+    } else {
+      return state;
+    }
+  }
+
+  /// The `Fiber` is used to avoid multiple refreshes at the same time.
+  @protected
+  final fiber = RepositoryFiber<Data>();
 
   /// Disposes the repository. You should call this method when you're done
   /// using the repository.
@@ -81,15 +104,66 @@ abstract class Repository<Data> {
   /// Clears the cache.
   Future<void> clearCache() => cache.delete(key: key);
 
-  /// Refreshes the repository from remote datasource, ignoring cache.
-  Future<void> refresh() => resolve(useCache: false);
+  /// Gets the data from the cache, if it exists, and emits it to the stream.
+  Future<void> hydrate({bool refreshAfter = true}) async {
+    try {
+      final cachedDataString = await Repository.cache.read(key: key);
 
-  /// Resolves the repository.
-  /// If [useCache] is true, the repository will try to fetch data
-  /// from the cache.
-  /// If the cache is not empty, the repository will add the data from the cache
-  /// to the stream.
-  Future<void> resolve({bool useCache = true, bool useRemote = true});
+      if (cachedDataString != null) {
+        final data = fromJson(cachedDataString);
+
+        await emit(
+          data: data,
+          datasource: RepositoryDatasource.local,
+        );
+      }
+    } on FormatException catch (e) {
+      Repository.logger(
+        'Error while hydrating repository $key: $e.'
+        ' The cache will be cleared.',
+      );
+
+      await clearCache();
+    } finally {
+      if (refreshAfter) {
+        await refresh();
+      }
+    }
+  }
+
+  /// Refreshes the repository from remote datasource.
+  Future<Data> refresh() {
+    // Run the refresh in a fiber to avoid multiple refreshes at the same time
+    return fiber.run(_refresh);
+  }
+
+  Future<Data> _refresh() async {
+    // Save the current time to calculate the time it took to refresh the
+    final before = DateTime.now();
+    // Log the refresh
+    Repository.logger('Refreshing repository $key');
+    // Resolve the data from the remote source
+    final rawData = await resolve();
+    // Decodes the raw data to the data that will be used in the stream
+    final data = fromJson(rawData);
+    // Emit the data to the stream
+    await emit(
+      data: data,
+      datasource: RepositoryDatasource.remote,
+    );
+    // Save the raw data in the cache
+    await cache.write(key: key, value: rawData);
+    // Log the time it took to refresh
+    final after = DateTime.now();
+    final timeSpent = after.difference(before);
+    Repository.logger(
+      'Repository $key refreshed in'
+      ' ${timeSpent.inMilliseconds}ms',
+    );
+
+    // Return the new data
+    return data;
+  }
 
   /// Updates the current data and refresh the repository.
   /// The [resolver] function takes the current data and returns the new data.
@@ -106,7 +180,7 @@ abstract class Repository<Data> {
       datasource: RepositoryDatasource.optimistic,
     );
 
-    // It's just `this` is a getter and the if below will not work
+    // It's just 'cause `this` is a getter, so the 'if' below will not work
     // if we don't use it as a local variable.
     final self = this;
 
@@ -130,22 +204,32 @@ abstract class Repository<Data> {
         source: datasource,
       ),
     );
-    currentValue = data;
   }
 
   // Abstract methods and properties
+
+  /// Gets the data from the remote source and returns the raw data.
+  /// The returned string will be saved in the cache and decoded using
+  /// [fromJson].
+  @protected
+  Future<String> resolve();
+
+  /// Transforms the raw data from the remote source to the data that will be
+  /// used in the stream.
+  @protected
+  Data fromJson(String json);
 
   /// The key used to save the data in the cache.
   /// This key must be unique.
   /// If you have multiple repositories with the same key, the cache will be
   /// overwritten.
   @protected
-  String get key;
+  String get key => '$runtimeType(${tag ?? ''})';
 
   /// The tag used to differ cache from same key repositories. It's commonly
   /// used to build the `key` property.
   @protected
-  String? get tag;
+  String? get tag => null;
 
   /// The stream of the repository.
   /// This stream will emit the data every time it changes.
