@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:repository/src/repositories/custom_http_repository.dart';
-import 'package:repository/src/repository.dart';
 
 /// {@template http_repository}
 /// A `Repository` that fetches data from an endpoint. It is a wrapper around
@@ -20,12 +19,12 @@ class HttpRepository<Data> extends CustomHttpRepository<Data> {
   HttpRepository({
     required this.endpoint,
     Data Function(dynamic json)? fromJson,
-    FutureOr<void> Function(Repository<Data> repository)? onSocketException,
+    FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
     super.resolveOnCreate,
     super.autoRefreshInterval,
     super.tag,
   })  : _fromJson = fromJson ?? ((json) => json as Data),
-        _onSocketException = onSocketException;
+        _shouldRetryCondition = shouldRetryCondition;
 
   /// The endpoint to fetch the data from.
   /// This is the only required parameter.
@@ -36,8 +35,7 @@ class HttpRepository<Data> extends CustomHttpRepository<Data> {
   final Data Function(dynamic json) _fromJson;
 
   /// Private field that holds the [onSocketException] callback.
-  final FutureOr<void> Function(Repository<Data> repository)?
-      _onSocketException;
+  final FutureOr<bool> Function(Exception exception)? _shouldRetryCondition;
 
   /// This function is called on resolve to
   /// get the data from the endpoint or cache.
@@ -47,7 +45,8 @@ class HttpRepository<Data> extends CustomHttpRepository<Data> {
   }
 
   @override
-  FutureOr<void> onSocketException(Repository<Data> repository) {
-    return _onSocketException?.call(repository);
+  FutureOr<bool> shouldRetry(Exception exception) {
+    return _shouldRetryCondition?.call(exception) ??
+        super.shouldRetry(exception);
   }
 }

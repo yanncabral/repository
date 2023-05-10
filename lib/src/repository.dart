@@ -6,6 +6,7 @@ import 'package:repository/src/domain/entities/states.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_fiber.dart';
 import 'package:repository/src/infra/repository_logger.dart';
+import 'package:retry/retry.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// A [Repository] that can be backpropagated to a remote source.
@@ -112,10 +113,7 @@ abstract class Repository<Data> {
       if (cachedDataString != null) {
         final data = fromJson(cachedDataString);
 
-        await emit(
-          data: data,
-          datasource: RepositoryDatasource.local,
-        );
+        await emit(data: data);
       }
     } on FormatException catch (e) {
       Repository.logger(
@@ -134,8 +132,15 @@ abstract class Repository<Data> {
   /// Refreshes the repository from remote datasource.
   Future<Data> refresh() {
     // Run the refresh in a fiber to avoid multiple refreshes at the same time
-    return fiber.run(_refresh);
+    return retry(
+      () => fiber.run(_refresh),
+      retryIf: shouldRetry,
+    );
   }
+
+  /// Used to decide if the repository should retry after an error.
+  @protected
+  FutureOr<bool> shouldRetry(Exception exception) => true;
 
   Future<Data> _refresh() async {
     // Save the current time to calculate the time it took to refresh the
@@ -195,7 +200,7 @@ abstract class Repository<Data> {
   @protected
   Future<void> emit({
     required Data data,
-    required RepositoryDatasource datasource,
+    RepositoryDatasource datasource = RepositoryDatasource.local,
   }) async {
     _controller.add(
       RepositoryState.ready(

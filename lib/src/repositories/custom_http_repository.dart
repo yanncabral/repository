@@ -32,7 +32,9 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
   /// If the request fails with [SocketException], this callback will be called
   /// with the repository itself as an argument.
   /// This callback is useful for retrying the request.
-  FutureOr<void> onSocketException(Repository<Data> repository);
+  FutureOr<void> onSocketException(Exception exception) {
+    throw exception;
+  }
 
   /// The endpoint to fetch data from.
   Uri get endpoint;
@@ -73,7 +75,7 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
           received: response,
         );
       }
-    } on SocketException {
+    } on SocketException catch (exception) {
       /// if the user is offline, the request will fail.
       /// if [onSocketException] is not null, we call it.
       /// if [onSocketException] is null, we rethrow the exception.
@@ -83,7 +85,7 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
         level: RepositoryLoggingLevel.warning,
       );
 
-      await onSocketException(this);
+      await onSocketException(exception);
       rethrow;
     }
   }
@@ -111,4 +113,8 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
       return '$tag,$endpoint';
     }
   }
+
+  @override
+  FutureOr<bool> shouldRetry(Exception exception) =>
+      exception is SocketException;
 }
