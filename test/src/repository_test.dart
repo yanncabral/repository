@@ -69,8 +69,8 @@ class _TestRepository extends Repository<int> {
   }
 
   @override
-  int fromJson(String json) {
-    return int.parse(json);
+  int fromJson(covariant int json) {
+    return json;
   }
 
   @override

@@ -33,7 +33,7 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
   Data zipper(List<dynamic> values);
 
   @override
-  Data fromJson(String json) {
+  Data fromJson(covariant String json) {
     /// Split the json into a list of jsons
     final jsons = json.split(_separator);
 

@@ -3,7 +3,7 @@ description: The all-in-one solution for fetching remote data from a REST API us
 version: 3.0.0+1
 
 environment:
-  sdk: ">=2.19.0 <3.0.0"
+  sdk: ">=3.0.0"
 
 dev_dependencies:
   mocktail: ^0.3.0

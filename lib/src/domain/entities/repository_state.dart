@@ -4,7 +4,7 @@ import 'package:repository/src/domain/entities/data_source.dart';
 /// {@template repository_state}
 /// A generic class that holds a value of the current state of the repository.
 /// {@endtemplate}
-abstract class RepositoryState<Data> extends Equatable {
+sealed class RepositoryState<Data> extends Equatable {
   /// {@macro repository_state}
   const RepositoryState();
 
@@ -28,19 +28,16 @@ abstract class RepositoryState<Data> extends Equatable {
   /// The [map] method is useful when you want to handle the state of the
   /// repository. For example you can map empty state to a loading
   /// indicator and ready state to a list of items.
-  Result map<Result>({
-    required Result Function(RepositoryStateEmpty<Data> state) empty,
+  Result? map<Result>({
     required Result Function(RepositoryStateReady<Data> state) ready,
+    Result? Function(RepositoryStateEmpty<Data> state)? empty,
   }) {
     final self = this;
 
-    if (self is RepositoryStateEmpty<Data>) {
-      return empty(self);
-    } else if (self is RepositoryStateReady<Data>) {
-      return ready(self);
-    } else {
-      throw Exception('Unhandled Repository state $runtimeType');
-    }
+    return switch (self) {
+      RepositoryStateEmpty<Data> _ => empty?.call(self),
+      RepositoryStateReady<Data> _ => ready.call(self),
+    };
   }
 }
 

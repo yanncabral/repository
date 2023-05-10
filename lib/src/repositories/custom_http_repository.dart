@@ -49,13 +49,8 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
   @override
   Future<String> resolve() async {
     try {
-      final request = RepositoryHttpRequest(
-        url: endpoint,
-      );
-
-      final response = await client.get(
-        request: request,
-      );
+      final request = RepositoryHttpRequest(url: endpoint);
+      final response = await client.get(request: request);
 
       /// If the endpoint returns a 200, add the data to the stream
       /// and cache it

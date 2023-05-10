@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:meta/meta.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
-import 'package:repository/src/domain/entities/states.dart';
+import 'package:repository/src/domain/entities/repository_state.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_fiber.dart';
 import 'package:repository/src/infra/repository_logger.dart';
@@ -108,10 +109,10 @@ abstract class Repository<Data> {
   /// Gets the data from the cache, if it exists, and emits it to the stream.
   Future<void> hydrate({bool refreshAfter = true}) async {
     try {
-      final cachedDataString = await Repository.storage.read(key: key);
+      final cachedDataString = await storage.read(key: key);
 
       if (cachedDataString != null) {
-        final data = fromJson(cachedDataString);
+        final data = fromJson(json.decode(cachedDataString));
 
         await emit(data: data);
       }
@@ -150,7 +151,7 @@ abstract class Repository<Data> {
     // Resolve the data from the remote source
     final rawData = await resolve();
     // Decodes the raw data to the data that will be used in the stream
-    final data = fromJson(rawData);
+    final data = fromJson(json.decode(rawData));
     // Emit the data to the stream
     await emit(
       data: data,
@@ -210,6 +211,12 @@ abstract class Repository<Data> {
     );
   }
 
+  /// Clears the cache and emits an empty state to the repository stream.
+  Future<void> clear() async {
+    _controller.add(const RepositoryState.empty());
+    await clearCache();
+  }
+
   // Abstract methods and properties
 
   /// Gets the data from the remote source and returns the raw data.
@@ -221,7 +228,7 @@ abstract class Repository<Data> {
   /// Transforms the raw data from the remote source to the data that will be
   /// used in the stream.
   @protected
-  Data fromJson(String json);
+  Data fromJson(dynamic json);
 
   /// The key used to save the data in the cache.
   /// This key must be unique.
