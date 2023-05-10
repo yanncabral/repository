@@ -10,6 +10,9 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
   /// {@macro custom_zip_repository}
   CustomZipRepository({super.autoRefreshInterval, super.resolveOnCreate});
 
+  // It's just a misused character that is unlikely to be used in the data.
+  // It's used to separate the data of each repository.
+  // See more: https://stackoverflow.com/a/29811033
   static final _separator = String.fromCharCode(0x1d);
 
   @override
