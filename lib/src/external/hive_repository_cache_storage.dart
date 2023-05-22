@@ -1,6 +1,5 @@
 import 'package:hive/hive.dart';
 import 'package:meta/meta.dart';
-import 'package:repository/repository.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
 
 /// {@template hive_repository_cache_storage}
@@ -29,15 +28,14 @@ class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
     await _box.delete(hashedKey);
   }
 
+  final Map<String, String> _inMemoryCache = {};
+
   @override
   Future<String?> read({required String key}) async {
     final hashedKey = hashKey(key);
     try {
-      return _box.get(hashedKey);
+      return _inMemoryCache[hashedKey] ?? _box.get(hashedKey);
     } catch (e) {
-      Repository.logger(
-        '[Repository] Error reading from cache: $e. Clearing cache...',
-      );
       await _box.delete(hashedKey);
       return null;
     }
@@ -46,6 +44,7 @@ class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
   @override
   Future<void> write({required String key, required String value}) async {
     final hashedKey = hashKey(key);
+    _inMemoryCache[hashedKey] = value;
     await _box.put(hashedKey, value);
   }
 

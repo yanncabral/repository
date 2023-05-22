@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:repository/src/repositories/custom_http_repository.dart';
+import 'package:repository/repository.dart';
 
 /// {@template http_repository}
 /// A `Repository` that fetches data from an endpoint. It is a wrapper around
@@ -18,13 +18,21 @@ class HttpRepository<Data> extends CustomHttpRepository<Data> {
   /// If [autoRefreshInterval] is not null, the repository will automatically
   HttpRepository({
     required this.endpoint,
-    Data Function(dynamic json)? fromJson,
+    Data Function(String json)? fromJson,
     FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
     super.resolveOnCreate,
     super.autoRefreshInterval,
     super.tag,
+    String? name,
   })  : _fromJson = fromJson ?? ((json) => json as Data),
-        _shouldRetryCondition = shouldRetryCondition;
+        _shouldRetryCondition = shouldRetryCondition,
+        _name = name,
+        super();
+
+  final String? _name;
+
+  @override
+  String get name => _name ?? super.name;
 
   /// The endpoint to fetch the data from.
   /// This is the only required parameter.
@@ -32,7 +40,7 @@ class HttpRepository<Data> extends CustomHttpRepository<Data> {
   final Uri endpoint;
 
   /// Private field that holds the [fromJson] callback.
-  final Data Function(dynamic json) _fromJson;
+  final Data Function(String json) _fromJson;
 
   /// Private field that holds the [onSocketException] callback.
   final FutureOr<bool> Function(Exception exception)? _shouldRetryCondition;
@@ -40,7 +48,7 @@ class HttpRepository<Data> extends CustomHttpRepository<Data> {
   /// This function is called on resolve to
   /// get the data from the endpoint or cache.
   @override
-  Data fromJson(dynamic json) {
+  Data fromJson(String json) {
     return _fromJson(json);
   }
 

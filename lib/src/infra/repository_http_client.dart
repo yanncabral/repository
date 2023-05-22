@@ -17,7 +17,13 @@ abstract class RepositoryHttpClient {
   Future<RepositoryHttpResponse> get({
     required RepositoryHttpRequest request,
   });
+
+  /// Makes a HTTP `post` request using [HttpClientRequest].
+  static TokenBuilder? tokenBuilder;
 }
+
+/// A type alias for a function that returns a [BearerToken].
+typedef TokenBuilder = Future<BearerToken?> Function();
 
 /// {@template repository_http_response}
 /// A class that represents the response from a HTTP request.
@@ -58,18 +64,14 @@ class RepositoryHttpRequest {
   /// {@macro repository_http_request}
   const RepositoryHttpRequest({
     required this.url,
-    this.headers = const {},
-    this.bearerTokenBuilder,
-  });
+    Map<String, String>? headers,
+  }) : headers = headers ?? const {};
 
   /// The url of the request.
   final Uri url;
 
   /// The headers of the request.
   final Map<String, String> headers;
-
-  /// Builds the bearer token if it's needed.
-  final BearerToken Function()? bearerTokenBuilder;
 
   @override
   String toString() {

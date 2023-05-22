@@ -1,5 +1,4 @@
 import 'package:repository/repository.dart';
-import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -69,10 +68,10 @@ class _TestRepository extends Repository<int> {
   }
 
   @override
-  int fromJson(covariant int json) {
-    return json;
+  int fromJson(String json) {
+    return int.parse(json);
   }
 
   @override
-  String get key => 'test_repository';
+  String get name => key;
 }

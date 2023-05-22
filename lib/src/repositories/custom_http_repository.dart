@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:repository/repository.dart';
 import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
-import 'package:repository/src/external/http_repository_http_client.dart';
-import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
-import 'package:repository/src/repository.dart';
 
 /// {@template custom_http_repository}
 /// A [CustomHttpRepository] is a [Repository] that fetches data from an Http
@@ -18,7 +16,11 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
     super.autoRefreshInterval,
     super.resolveOnCreate,
     this.tag,
+    this.accessTokenBuilder,
   });
+
+  /// A callback that returns the access token.
+  Future<String> Function()? accessTokenBuilder;
 
   /// The tag of the repository.
   /// This is used to identify the repository in the cache.
@@ -44,7 +46,7 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
   /// The http client used to fetch data from the endpoint.
   /// This is a monostate, so it will be shared across all instances of
   /// [CustomHttpRepository] and `HttpRepository`.
-  static RepositoryHttpClient client = HttpRepositoryHttpClient();
+  static const client = HttpRepositoryHttpClient();
 
   @override
   Future<String> resolve() async {
@@ -60,7 +62,7 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
         return result;
       } else {
         Repository.logger(
-          'Failed to resolve [$endpoint]. '
+          'Repository($name): Failed to resolve [$endpoint]. '
           'status code: ${response.statusCode}',
         );
         await onErrorStatusCode(response.statusCode);
@@ -70,20 +72,25 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
           received: response,
         );
       }
-    } on SocketException catch (exception) {
+    } catch (exception) {
       /// if the user is offline, the request will fail.
       /// if [onSocketException] is not null, we call it.
       /// if [onSocketException] is null, we rethrow the exception.
       Repository.logger(
-        '$runtimeType throws [SocketException].'
-        ' Calling [onSocketException].',
+        'Repository($name): throws [${exception.runtimeType}].',
         level: RepositoryLoggingLevel.warning,
       );
 
-      await onSocketException(exception);
+      if (exception is Exception) {
+        await onSocketException(exception);
+      }
+
       rethrow;
     }
   }
+
+  @override
+  String get name => endpoint.path.split('/').last;
 
   /// Condition to determine if the endpoint returns a successful status code.
   /// The default condition is `statusCode >= 200 && statusCode < 300`.

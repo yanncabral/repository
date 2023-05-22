@@ -13,7 +13,7 @@ class RepositoryFiber<Data> {
 
   /// Returns true if there is one or more async functions running.
   bool get isBusy {
-    return _completer != null && _completer?.isCompleted == false;
+    return _completer?.isCompleted == false;
   }
 
   /// Runs an async function and returns a `Future` that
@@ -31,7 +31,7 @@ class RepositoryFiber<Data> {
       // If there is no completer or completer is completed, create a new one.
       _completer = Completer();
       final response = await fn();
-      _completer!.complete(response);
+      _completer?.complete(response);
 
       return response;
     }

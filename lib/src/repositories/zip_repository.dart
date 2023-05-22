@@ -1,7 +1,3 @@
-// import 'package:transfero_crypto/capabilites/repository/repositories/repository.dart';
-
-// import 'custom_zip_repository.dart';
-
 import 'package:repository/src/repositories/custom_zip_repository.dart';
 import 'package:repository/src/repository.dart';
 
@@ -18,8 +14,15 @@ class ZipRepository<Data> extends CustomZipRepository<Data> {
     required this.repositories,
     required Data Function(List<dynamic> streams) zipper,
     super.autoRefreshInterval,
+    String? name,
     super.resolveOnCreate,
-  }) : _zipper = zipper;
+  })  : _zipper = zipper,
+        _name = name;
+
+  final String? _name;
+
+  @override
+  String get name => _name ?? super.name;
 
   /// The list of [Repository]s to combine.
   /// The [zipper] function will be called every time one of the [Repository]s
@@ -33,7 +36,4 @@ class ZipRepository<Data> extends CustomZipRepository<Data> {
   /// This function is called on resolve to get the streams to combine.
   @override
   Data zipper(List<dynamic> values) => _zipper(values);
-
-  @override
-  String? get tag => repositories.map((e) => e.tag).join('-');
 }

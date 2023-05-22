@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:meta/meta.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
@@ -7,6 +6,7 @@ import 'package:repository/src/domain/entities/repository_state.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_fiber.dart';
 import 'package:repository/src/infra/repository_logger.dart';
+import 'package:repository/src/repositories/http_repository.dart';
 import 'package:retry/retry.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -32,6 +32,8 @@ abstract class Repository<Data> {
     this.autoRefreshInterval,
     bool resolveOnCreate = true,
   }) {
+    track();
+
     hydrate(refreshAfter: resolveOnCreate);
 
     if (autoRefreshInterval != null) {
@@ -42,11 +44,57 @@ abstract class Repository<Data> {
     }
   }
 
+  /// {@macro http_repository}
+  factory Repository.http({
+    required Uri endpoint,
+    Data Function(String json)? fromJson,
+    FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
+    Duration? autoRefreshInterval,
+    String? tag,
+    bool resolveOnCreate = true,
+    String? name,
+  }) {
+    return HttpRepository<Data>(
+      name: name,
+      endpoint: endpoint,
+      fromJson: fromJson,
+      shouldRetryCondition: shouldRetryCondition,
+      tag: tag,
+      autoRefreshInterval: autoRefreshInterval,
+      resolveOnCreate: resolveOnCreate,
+    );
+  }
+
+  /// Pool repositories that are tracked.
+  static final List<WeakReference<Repository<dynamic>>> repositories = [];
+
+  /// Method used to add this repository to the pool.
+  /// It's useful for debugging.
+  @protected
+  void track() {
+    Repository.repositories.add(WeakReference(this));
+  }
+
+  @override
+  String toString() {
+    return 'Repository($name, key: $key, type: $Data)';
+  }
+
+  /// Repository name used in logs and debugging.
+  String get name;
+
   /// The interval at which the repository will refresh itself.
   /// If null, the repository will not refresh itself.
   /// If not null, the repository will refresh itself
   /// every [autoRefreshInterval].
   final Duration? autoRefreshInterval;
+
+  /// Get the current data of the repository
+  /// if it's already resolved, otherwise resolve it.
+  /// This method will not refresh the repository if it's already resolved.
+  Future<Data> currentValueOrResolve() async {
+    return currentValue ?? await refresh();
+  }
 
   /// Internal timer used to refresh the repository.
   @protected
@@ -90,7 +138,11 @@ abstract class Repository<Data> {
 
   /// The `Fiber` is used to avoid multiple refreshes at the same time.
   @protected
-  final fiber = RepositoryFiber<Data>();
+  final refreshFiber = RepositoryFiber<Data>();
+
+  /// Fiber used to hydrate the repository.
+  @protected
+  final hydratationFiber = RepositoryFiber<Data?>();
 
   /// Disposes the repository. You should call this method when you're done
   /// using the repository.
@@ -107,34 +159,63 @@ abstract class Repository<Data> {
   Future<void> clearCache() => storage.delete(key: key);
 
   /// Gets the data from the cache, if it exists, and emits it to the stream.
-  Future<void> hydrate({bool refreshAfter = true}) async {
-    try {
-      final cachedDataString = await storage.read(key: key);
+  @visibleForTesting
+  @protected
+  Future<Data?> hydrate({bool refreshAfter = true}) async {
+    return hydratationFiber.run(() async {
+      final stopwatch = Stopwatch()..start();
+      try {
+        final cachedDataString = await storage.read(key: key);
 
-      if (cachedDataString != null) {
-        final data = fromJson(json.decode(cachedDataString));
+        if (cachedDataString != null) {
+          return await _emitRawData(cachedDataString);
+        }
+      } on FormatException catch (e) {
+        logger.call(
+          'Repository($name): Error while hydrating repository $key: $e.'
+          ' The cache will be cleared.',
+        );
 
-        await emit(data: data);
+        await clearCache();
+      } finally {
+        stopwatch.stop();
+        logger.call(
+          'Repository($name): '
+          'hydrated in ${stopwatch.elapsedMilliseconds}ms',
+        );
+
+        if (refreshAfter) {
+          await refresh();
+        }
       }
-    } on FormatException catch (e) {
-      Repository.logger(
-        'Error while hydrating repository $key: $e.'
-        ' The cache will be cleared.',
-      );
+      return null;
+    });
+  }
 
-      await clearCache();
-    } finally {
-      if (refreshAfter) {
-        await refresh();
-      }
+  Future<Data> _emitRawData(
+    String rawData, {
+    RepositoryDatasource datasource = RepositoryDatasource.local,
+  }) async {
+    final data = fromJson(rawData);
+    await emit(
+      data: data,
+      datasource: datasource,
+    );
+
+    // We do not need to persist if it comes from the cache or
+    // if the data is optimistic.
+    if (datasource == RepositoryDatasource.remote) {
+      await storage.write(key: key, value: rawData);
     }
+
+    return data;
   }
 
   /// Refreshes the repository from remote datasource.
-  Future<Data> refresh() {
-    // Run the refresh in a fiber to avoid multiple refreshes at the same time
+  Future<Data> refresh() async {
     return retry(
-      () => fiber.run(_refresh),
+      // Run the refresh in a fiber to avoid multiple refreshes at the same time
+      () => refreshFiber.run(_refresh),
       retryIf: shouldRetry,
     );
   }
@@ -146,24 +227,19 @@ abstract class Repository<Data> {
   Future<Data> _refresh() async {
     // Save the current time to calculate the time it took to refresh the
     final before = DateTime.now();
-    // Log the refresh
-    Repository.logger('Refreshing repository $key');
     // Resolve the data from the remote source
     final rawData = await resolve();
     // Decodes the raw data to the data that will be used in the stream
-    final data = fromJson(json.decode(rawData));
-    // Emit the data to the stream
-    await emit(
-      data: data,
+    // Emit the data to the stream and persist
+    final data = await _emitRawData(
+      rawData,
       datasource: RepositoryDatasource.remote,
     );
-    // Save the raw data in the cache
-    await storage.write(key: key, value: rawData);
     // Log the time it took to refresh
     final after = DateTime.now();
     final timeSpent = after.difference(before);
     Repository.logger(
-      'Repository $key refreshed in'
+      'Repository($name): refreshed in'
       ' ${timeSpent.inMilliseconds}ms',
     );
 
@@ -203,6 +279,7 @@ abstract class Repository<Data> {
     required Data data,
     RepositoryDatasource datasource = RepositoryDatasource.local,
   }) async {
+    logger('Emitting data to repository $name: $data');
     _controller.add(
       RepositoryState.ready(
         data: data,
@@ -228,14 +305,16 @@ abstract class Repository<Data> {
   /// Transforms the raw data from the remote source to the data that will be
   /// used in the stream.
   @protected
-  Data fromJson(dynamic json);
+  Data fromJson(String json);
 
   /// The key used to save the data in the cache.
   /// This key must be unique.
   /// If you have multiple repositories with the same key, the cache will be
   /// overwritten.
   @protected
-  String get key => '$runtimeType(${tag ?? ''})';
+  String get key {
+    return (runtimeType.toString().hashCode + (tag?.hashCode ?? 0)).toString();
+  }
 
   /// The tag used to differ cache from same key repositories. It's commonly
   /// used to build the `key` property.
