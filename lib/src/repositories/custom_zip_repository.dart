@@ -16,8 +16,8 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
     super.resolveOnCreate,
   }) {
     ZipStream(repositories.map((e) => e.stream), _zipper).listen((data) {
-      // Whenever any of the repositories emit new data, zip
-      //the data from all repositories and emit it
+      // Whenever any of the repositories emit new data, zip the data from
+      // all repositories and emit it
       // to the stream of this repository.
 
       emit(data: data);
@@ -31,7 +31,7 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
     return zipper(values);
   }
 
-  /// The function that combines the data of the [Repository]s into one.
+  /// Zips the data of each repository into a single data.
   Data zipper(List<dynamic> values);
 
   // It's just a misused character that is unlikely to be used in the data.

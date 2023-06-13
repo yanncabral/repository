@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:repository/repository.dart';
 import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
+import 'package:repository/src/external/http_repository_http_client.dart';
+import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
+import 'package:repository/src/repository.dart';
 
 /// {@template custom_http_repository}
 /// A [CustomHttpRepository] is a [Repository] that fetches data from an Http
@@ -19,7 +21,8 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
     this.accessTokenBuilder,
   });
 
-  /// A callback that returns the access token.
+  /// The access token builder. It'll be sent as a Bearer token in the
+  /// Authorization header if it's not null.
   Future<String> Function()? accessTokenBuilder;
 
   /// The tag of the repository.

@@ -65,14 +65,20 @@ abstract class Repository<Data> {
     );
   }
 
-  /// Pool repositories that are tracked.
+  /// List of all repositories in memory. It's useful for debugging.
   static final List<WeakReference<Repository<dynamic>>> repositories = [];
 
-  /// Method used to add this repository to the pool.
-  /// It's useful for debugging.
+  /// Add the repository to the list of all repositories in memory if it's not
+  /// already in the list.
   @protected
   void track() {
-    Repository.repositories.add(WeakReference(this));
+    final alreadyTracked = Repository.repositories.any(
+      (ref) => ref.target?.key == key,
+    );
+
+    if (!alreadyTracked) {
+      Repository.repositories.add(WeakReference(this));
+    }
   }
 
   @override
@@ -80,7 +86,7 @@ abstract class Repository<Data> {
     return 'Repository($name, key: $key, type: $Data)';
   }
 
-  /// Repository name used in logs and debugging.
+  /// Repository name used to log messages.
   String get name;
 
   /// The interval at which the repository will refresh itself.
@@ -140,7 +146,7 @@ abstract class Repository<Data> {
   @protected
   final refreshFiber = RepositoryFiber<Data>();
 
-  /// Fiber used to hydrate the repository.
+  /// The `Fiber` is used to avoid multiple hydratations at the same time.
   @protected
   final hydratationFiber = RepositoryFiber<Data?>();
 

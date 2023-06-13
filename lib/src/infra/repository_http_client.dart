@@ -18,7 +18,9 @@ abstract class RepositoryHttpClient {
     required RepositoryHttpRequest request,
   });
 
-  /// Makes a HTTP `post` request using [HttpClientRequest].
+  /// It's used to get the token to be used in the
+  /// `Authorization` header. It's also a static variable,
+  /// so you can set it once and it will be used in all requests.
   static TokenBuilder? tokenBuilder;
 }
 

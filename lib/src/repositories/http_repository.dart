@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:repository/repository.dart';
+import 'package:repository/src/repositories/custom_http_repository.dart';
 
 /// {@template http_repository}
 /// A `Repository` that fetches data from an endpoint. It is a wrapper around
@@ -13,9 +13,9 @@ class HttpRepository<Data> extends CustomHttpRepository<Data> {
   /// The [endpoint] is the only required parameter.
   /// The [fromJson] function is optional
   ///  and defaults to returning the json as is.
-  /// The [autoRefreshInterval] is optional and defaults to null.
+  /// The `autoRefreshInterval` is optional and defaults to null.
   /// The `resolveOnCreate` is optional and defaults to true.
-  /// If [autoRefreshInterval] is not null, the repository will automatically
+  /// If `autoRefreshInterval` is not null, the repository will automatically
   HttpRepository({
     required this.endpoint,
     Data Function(String json)? fromJson,
