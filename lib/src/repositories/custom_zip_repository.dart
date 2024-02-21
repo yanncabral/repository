@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
 import 'package:repository/src/repository.dart';
 import 'package:rxdart/rxdart.dart';
@@ -15,24 +16,32 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
     super.autoRefreshInterval,
     super.resolveOnCreate,
   }) {
-    ZipStream(repositories.map((e) => e.stream), _zipper).listen((data) {
-      // Whenever any of the repositories emit new data, zip the data from
-      // all repositories and emit it
-      // to the stream of this repository.
+    CombineLatestStream(
+      repositories.map((e) => e.stream),
+      _zipper,
+    ).listen((builtData) {
+      // Whenever any of the repositories emit new data, zip the data from all
+      // repositories and emit it to the stream of this repository.
 
-      emit(data: data);
+      if (builtData != null) {
+        emit(data: builtData);
+      }
     });
   }
 
-  Data _zipper(List<RepositoryState<dynamic>> states) {
+  Data? _zipper(List<RepositoryState> states) {
     final values =
         states.map((e) => e.map(ready: (state) => state.data)).toList();
 
-    return zipper(values);
+    if (values.any((element) => element == null)) {
+      return null;
+    } else {
+      return zipper(values);
+    }
   }
 
-  /// Zips the data of each repository into a single data.
-  Data zipper(List<dynamic> values);
+  /// The function that combines the data of the [Repository]s into one.
+  Data zipper(List values);
 
   // It's just a misused character that is unlikely to be used in the data.
   // It's used to separate the data of each repository.
@@ -40,22 +49,17 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
   static final _separator = String.fromCharCode(0x1d);
 
   @override
-  String get key {
-    return [
-      ...repositories.map((r) => r.key),
-      if (tag != null) tag,
-    ].join('-').hashCode.toString();
-  }
-
-  @override
-  Future<String> resolve() async {
+  Future<({String body, String? tag})> resolve() async {
     final responses = await Future.wait(
       repositories.map(
         (repository) => repository.resolve(),
       ),
     );
 
-    return responses.join(_separator);
+    return (
+      body: responses.map((e) => e.body).join(_separator),
+      tag: responses.map((e) => e.tag.toString()).join(_separator),
+    );
   }
 
   /// A list of repositories that will be zipped.
@@ -98,6 +102,7 @@ abstract class CustomZipRepository<Data> extends Repository<Data> {
     );
 
     final data = zipper(values);
+    await emit(data: data, datasource: RepositoryDatasource.remote);
 
     return data;
   }
