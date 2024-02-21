@@ -28,7 +28,7 @@ class RepositoryFiber<Data> {
 
         return response;
       } catch (e) {
-        _completer!.completeError(e);
+        _completer!.completeError(e, StackTrace.current);
         rethrow;
       }
     }
