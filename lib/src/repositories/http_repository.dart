@@ -13,26 +13,19 @@ class HttpRepository<Data> extends CustomHttpRepository<Data> {
   /// The [endpoint] is the only required parameter.
   /// The [fromJson] function is optional
   ///  and defaults to returning the json as is.
-  /// The `autoRefreshInterval` is optional and defaults to null.
+  /// The [autoRefreshInterval] is optional and defaults to null.
   /// The `resolveOnCreate` is optional and defaults to true.
-  /// If `autoRefreshInterval` is not null, the repository will automatically
+  /// If [autoRefreshInterval] is not null, the repository will automatically
   HttpRepository({
     required this.endpoint,
     Data Function(String json)? fromJson,
     FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
     super.resolveOnCreate,
     super.autoRefreshInterval,
-    super.tag,
-    String? name,
+    super.client,
+    super.queryParameters,
   })  : _fromJson = fromJson ?? ((json) => json as Data),
-        _shouldRetryCondition = shouldRetryCondition,
-        _name = name,
-        super();
-
-  final String? _name;
-
-  @override
-  String get name => _name ?? super.name;
+        _shouldRetryCondition = shouldRetryCondition;
 
   /// The endpoint to fetch the data from.
   /// This is the only required parameter.
