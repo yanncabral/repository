@@ -49,7 +49,7 @@ abstract class CustomHttpRepository<Data> extends Repository<Data> {
   /// The http client used to fetch data from the endpoint.
   /// This is a monostate, so it will be shared across all instances of
   /// [CustomHttpRepository] and `HttpRepository`.
-  static const client = HttpRepositoryHttpClient();
+  static final client = HttpRepositoryHttpClient();
 
   @override
   Future<String> resolve() async {

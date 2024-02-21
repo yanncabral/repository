@@ -23,16 +23,16 @@ class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
   }
 
   @override
-  Future<void> delete({required String key}) async {
-    final hashedKey = hashKey(key);
+  Future<void> delete({required String key, String? tag}) async {
+    final hashedKey = hashKey(key, tag: tag);
     await _box.delete(hashedKey);
   }
 
   final Map<String, String> _inMemoryCache = {};
 
   @override
-  Future<String?> read({required String key}) async {
-    final hashedKey = hashKey(key);
+  Future<String?> read({required String key, String? tag}) async {
+    final hashedKey = hashKey(key, tag: tag);
     try {
       return _inMemoryCache[hashedKey] ?? _box.get(hashedKey);
     } catch (e) {
@@ -42,8 +42,12 @@ class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
   }
 
   @override
-  Future<void> write({required String key, required String value}) async {
-    final hashedKey = hashKey(key);
+  Future<void> write({
+    required String key,
+    required String value,
+    String? tag,
+  }) async {
+    final hashedKey = hashKey(key, tag: tag);
     _inMemoryCache[hashedKey] = value;
     await _box.put(hashedKey, value);
   }

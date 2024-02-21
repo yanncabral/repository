@@ -12,19 +12,20 @@ abstract class RepositoryCacheStorage {
 
   /// Hashes a key to be used as a cache key.
   @protected
-  String hashKey(String key) => md5.convert(key.codeUnits).toString();
+  String hashKey(String key, {String? tag}) => md5
+      .convert(
+        '$key\$\$$tag'.codeUnits,
+      )
+      .toString();
 
   /// Delete a value from the cache.
-  Future<void> delete({required String key});
+  Future<void> delete({required String key, String? tag});
 
   /// Read a value from the cache.
-  Future<String?> read({required String key});
+  Future<String?> read({required String key, String? tag});
 
   /// Write a value to the cache.
-  Future<void> write({
-    required String key,
-    required String value,
-  });
+  Future<void> write({required String key, required String value, String? tag});
 
   /// Clears the cache.
   Future<void> clear();

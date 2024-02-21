@@ -159,8 +159,6 @@ abstract class Repository<Data> {
     _controller.close();
   }
 
-  // Default methods
-
   /// Clears the cache.
   Future<void> clearCache() => storage.delete(key: key);
 
