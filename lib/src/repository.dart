@@ -17,7 +17,7 @@ import 'package:rxdart/rxdart.dart';
 /// when a user updates a profile.
 mixin RepositoryMutationMixin<Data> on Repository<Data> {
   /// Propagates data to a remote source and updates the stream.
-  Future<void> propagate(Data data);
+  Future<void> mutate(Data data);
 }
 
 /// A [Repository] is a class that holds data and provides a stream.
