@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
@@ -50,35 +51,27 @@ abstract class Repository<Data> {
     Data Function(String json)? fromJson,
     FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
     Duration? autoRefreshInterval,
-    String? tag,
     bool resolveOnCreate = true,
-    String? name,
   }) {
     return HttpRepository<Data>(
-      name: name,
       endpoint: endpoint,
       fromJson: fromJson,
       shouldRetryCondition: shouldRetryCondition,
-      tag: tag,
       autoRefreshInterval: autoRefreshInterval,
       resolveOnCreate: resolveOnCreate,
     );
   }
 
-  /// List of all repositories in memory. It's useful for debugging.
-  static final List<WeakReference<Repository<dynamic>>> repositories = [];
+  static final List<WeakReference<Repository>> _repositories = [];
 
-  /// Add the repository to the list of all repositories in memory if it's not
-  /// already in the list.
+  /// A list of all alive instances of [Repository].
+  static List<Repository> get instances =>
+      _repositories.map((e) => e.target).whereNotNull().toList();
+
+  /// Adds the repository to the list of all alive instances of [Repository].
   @protected
   void track() {
-    final alreadyTracked = Repository.repositories.any(
-      (ref) => ref.target?.key == key,
-    );
-
-    if (!alreadyTracked) {
-      Repository.repositories.add(WeakReference(this));
-    }
+    Repository._repositories.add(WeakReference(this));
   }
 
   @override
@@ -86,8 +79,8 @@ abstract class Repository<Data> {
     return 'Repository($name, key: $key, type: $Data)';
   }
 
-  /// Repository name used to log messages.
-  String get name;
+  /// The name of the repository.
+  String? get name;
 
   /// The interval at which the repository will refresh itself.
   /// If null, the repository will not refresh itself.
@@ -106,16 +99,39 @@ abstract class Repository<Data> {
   @protected
   Timer? timer;
 
+  /// Cancels the timer used to refresh the repository.
+  void cancelTimer() {
+    timer?.cancel();
+  }
+
+  /// Starts the timer used to refresh the repository.
+  void startTimer() {
+    if (timer?.isActive == false && autoRefreshInterval != null) {
+      timer = Timer.periodic(
+        autoRefreshInterval!,
+        (_) => refresh(),
+      );
+    }
+  }
+
   /// Stream controller to propagate data to the stream.
   /// It's using a BehaviorSubject so we can get the last value.
   @protected
   final _controller = BehaviorSubject<RepositoryState<Data>>();
 
+  /// Clears all the cache of all repositories.
+  static Future<void> clearAll() async {
+    await storage.clear();
+    for (final repository in _repositories) {
+      await repository.target?.clear();
+    }
+  }
+
   /// Monostate cache service to save data locally. It should be initialized
   /// before using any repository.
   static late RepositoryCacheStorage storage;
 
-  /// Monostate logger service to log messages.
+  /// Monostate logger service to log messages. It's a DevLogger by default.
   static RepositoryLogger logger = const RepositoryLogger.dev();
 
   /// Getter for the last value of the stream.
@@ -146,7 +162,7 @@ abstract class Repository<Data> {
   @protected
   final refreshFiber = RepositoryFiber<Data>();
 
-  /// The `Fiber` is used to avoid multiple hydratations at the same time.
+  /// The `Fiber` is used to avoid multiple hydrations at the same time.
   @protected
   final hydratationFiber = RepositoryFiber<Data?>();
 
@@ -163,13 +179,14 @@ abstract class Repository<Data> {
   Future<void> clearCache() => storage.delete(key: key);
 
   /// Gets the data from the cache, if it exists, and emits it to the stream.
-  @visibleForTesting
   @protected
   Future<Data?> hydrate({bool refreshAfter = true}) async {
     return hydratationFiber.run(() async {
       final stopwatch = Stopwatch()..start();
       try {
-        final cachedDataString = await storage.read(key: key);
+        final cachedDataString = await storage.read(
+          key: key,
+        );
 
         if (cachedDataString != null) {
           return await _emitRawData(cachedDataString);
@@ -185,7 +202,7 @@ abstract class Repository<Data> {
         stopwatch.stop();
         logger.call(
           'Repository($name): '
-          'hydrated in ${stopwatch.elapsedMilliseconds}ms',
+          'hydrated in ${stopwatch.elapsedMilliseconds}ms.',
         );
 
         if (refreshAfter) {
@@ -199,6 +216,7 @@ abstract class Repository<Data> {
   Future<Data> _emitRawData(
     String rawData, {
     RepositoryDatasource datasource = RepositoryDatasource.local,
+    String? tag,
   }) async {
     final data = fromJson(rawData);
     await emit(
@@ -209,7 +227,7 @@ abstract class Repository<Data> {
     // We do not need to persist if it comes from the cache or
     // if the data is optimistic.
     if (datasource == RepositoryDatasource.remote) {
-      await storage.write(key: key, value: rawData);
+      await storage.write(key: key, value: rawData, tag: tag);
     }
 
     return data;
@@ -229,22 +247,24 @@ abstract class Repository<Data> {
   FutureOr<bool> shouldRetry(Exception exception) => true;
 
   Future<Data> _refresh() async {
-    // Save the current time to calculate the time it took to refresh the
-    final before = DateTime.now();
+    // Save the current time to calculate the time it took to refresh the data
+    final stopwatch = Stopwatch()..start();
     // Resolve the data from the remote source
-    final rawData = await resolve();
+    final response = await resolve();
+
     // Decodes the raw data to the data that will be used in the stream
     // Emit the data to the stream and persist
     final data = await _emitRawData(
-      rawData,
+      response.body,
+      tag: response.tag,
       datasource: RepositoryDatasource.remote,
     );
     // Log the time it took to refresh
-    final after = DateTime.now();
-    final timeSpent = after.difference(before);
+    stopwatch.stop();
+    final timeSpent = stopwatch.elapsed;
     Repository.logger(
       'Repository($name): refreshed in'
-      ' ${timeSpent.inMilliseconds}ms',
+      ' ${timeSpent.inMilliseconds}ms.',
     );
 
     // Return the new data
@@ -265,12 +285,12 @@ abstract class Repository<Data> {
       data: newData,
       datasource: RepositoryDatasource.optimistic,
     );
-    // It's just 'cause `this` is a getter, so the 'if' below will not work
+    // It's just 'cause `this` is a getter, so the 'if' below would not work
     // if we don't use it as a local variable.
     final self = this;
 
     if (self is RepositoryMutationMixin<Data>) {
-      await self.propagate(newData);
+      await self.mutate(newData);
     }
 
     // Refresh the repository.
@@ -283,7 +303,7 @@ abstract class Repository<Data> {
     required Data data,
     RepositoryDatasource datasource = RepositoryDatasource.local,
   }) async {
-    logger('Emitting data to repository $name: $data');
+    logger('Emitting data to repository ${name ?? data.runtimeType}: $data');
     _controller.add(
       RepositoryState.ready(
         data: data,
@@ -304,7 +324,7 @@ abstract class Repository<Data> {
   /// The returned string will be saved in the cache and decoded using
   /// [fromJson].
   @protected
-  Future<String> resolve();
+  Future<({String body, String? tag})> resolve();
 
   /// Transforms the raw data from the remote source to the data that will be
   /// used in the stream.
@@ -316,14 +336,7 @@ abstract class Repository<Data> {
   /// If you have multiple repositories with the same key, the cache will be
   /// overwritten.
   @protected
-  String get key {
-    return (runtimeType.toString().hashCode + (tag?.hashCode ?? 0)).toString();
-  }
-
-  /// The tag used to differ cache from same key repositories. It's commonly
-  /// used to build the `key` property.
-  @protected
-  String? get tag => null;
+  String get key => runtimeType.toString();
 
   /// The stream of the repository.
   /// This stream will emit the data every time it changes.
