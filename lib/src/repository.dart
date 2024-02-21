@@ -15,7 +15,7 @@ import 'package:rxdart/rxdart.dart';
 /// though a repository.
 /// For example, you can use this mixin to save data to a remote API
 /// when a user updates a profile.
-mixin PropagatingRepositoryMixin<Data> on Repository<Data> {
+mixin RepositoryMutationMixin<Data> on Repository<Data> {
   /// Propagates data to a remote source and updates the stream.
   Future<void> propagate(Data data);
 }
@@ -269,7 +269,7 @@ abstract class Repository<Data> {
     // if we don't use it as a local variable.
     final self = this;
 
-    if (self is PropagatingRepositoryMixin<Data>) {
+    if (self is RepositoryMutationMixin<Data>) {
       await self.propagate(newData);
     }
 
