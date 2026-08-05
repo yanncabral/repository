@@ -18,3 +18,4 @@ export 'src/repositories/http_repository.dart';
 export 'src/repositories/zip_repository.dart';
 export 'src/repository_client.dart';
 export 'src/repository_flutter.dart';
+export 'src/repository_interceptor.dart';

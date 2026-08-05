@@ -1,6 +1,7 @@
 import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
+import 'package:repository/src/repository_interceptor.dart';
 
 /// Configures the shared infrastructure used by repositories.
 class RepositoryClient {
@@ -9,6 +10,7 @@ class RepositoryClient {
     required this.httpClient,
     required this.storage,
     this.logger = const RepositoryLogger.dev(),
+    this.interceptors = const [],
   });
 
   /// The HTTP adapter used to execute requests.
@@ -20,10 +22,24 @@ class RepositoryClient {
   /// The logger used by repositories managed by this client.
   final RepositoryLogger logger;
 
+  /// Middleware applied to every HTTP request in declaration order.
+  final List<RepositoryInterceptor> interceptors;
+
   /// Executes an HTTP request using the configured adapter.
   Future<RepositoryHttpResponse> call({
     required RepositoryHttpRequest request,
   }) {
-    return httpClient.call(request: request);
+    var handler = (RepositoryHttpRequest currentRequest) {
+      return httpClient.call(request: currentRequest);
+    };
+
+    for (final interceptor in interceptors.reversed) {
+      final next = handler;
+      handler = (currentRequest) {
+        return interceptor.intercept(request: currentRequest, next: next);
+      };
+    }
+
+    return handler(request);
   }
 }
