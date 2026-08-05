@@ -66,6 +66,72 @@ void main() {
     expect(repository.currentValue, ['Existing']);
     repository.dispose();
   });
+
+  test(
+    'repository action does not update data after an HTTP failure',
+    () async {
+      final repository = Repository<List<String>, _TransactionActions>(
+        client: RepositoryClient(
+          httpClient: _FailingActionHttpClient(),
+          storage: _InMemoryCacheStorage(),
+        ),
+        endpoint: Uri.parse('https://example.com/transactions'),
+        fromJson: (json) => [json],
+        actions: _TransactionActions.new,
+        resolveOnCreate: false,
+      );
+      await repository.refresh();
+
+      await expectLater(
+        repository.actions.createNewTransaction('Rejected'),
+        throwsA(isA<UnexpectedStatusCodeException>()),
+      );
+
+      expect(repository.currentValue, ['Existing']);
+      repository.dispose();
+    },
+  );
+
+  test(
+    'repository action can accept an intentional non-2xx response',
+    () async {
+      final repository = Repository<List<String>, _ConflictActions>(
+        client: RepositoryClient(
+          httpClient: _ConflictHttpClient(),
+          storage: _InMemoryCacheStorage(),
+        ),
+        endpoint: Uri.parse('https://example.com/items'),
+        fromJson: (json) => [json],
+        actions: _ConflictActions.new,
+        resolveOnCreate: false,
+      );
+      await repository.refresh();
+
+      final conflict = await repository.actions.acceptConflict();
+
+      expect(conflict, 'Conflict');
+      expect(repository.currentValue, ['Existing', 'Conflict']);
+      repository.dispose();
+    },
+  );
+}
+
+class _ConflictActions extends RepositoryActions<List<String>> {
+  _ConflictActions(super.context);
+
+  late final RepositoryAction0<String> acceptConflict = action0<String>(
+    run: (context) async {
+      final response = await context.request(
+        RepositoryHttpRequest(
+          url: Uri.parse('https://example.com/items'),
+          method: RepositoryHttpMethod.post,
+        ),
+        successfulCondition: (response) => response.statusCode == 409,
+      );
+      return response.body;
+    },
+    update: (current, conflict) => [...?current, conflict],
+  );
 }
 
 class _FailingActions extends RepositoryActions<List<String>> {
@@ -128,6 +194,41 @@ class _ActionHttpClient extends RepositoryHttpClient {
         RepositoryHttpMethod.post => request.body!['title']! as String,
         _ => '',
       },
+    );
+  }
+}
+
+class _FailingActionHttpClient extends RepositoryHttpClient {
+  @override
+  Future<RepositoryHttpResponse> call({
+    required RepositoryHttpRequest request,
+  }) async {
+    if (request.method == RepositoryHttpMethod.get) {
+      return const RepositoryHttpResponse(
+        statusCode: 200,
+        headers: {},
+        body: 'Existing',
+      );
+    }
+    return const RepositoryHttpResponse(
+      statusCode: 500,
+      headers: {},
+      body: 'Rejected',
+    );
+  }
+}
+
+class _ConflictHttpClient extends RepositoryHttpClient {
+  @override
+  Future<RepositoryHttpResponse> call({
+    required RepositoryHttpRequest request,
+  }) async {
+    return RepositoryHttpResponse(
+      statusCode: request.method == RepositoryHttpMethod.get ? 200 : 409,
+      headers: const {},
+      body: request.method == RepositoryHttpMethod.get
+          ? 'Existing'
+          : 'Conflict',
     );
   }
 }

@@ -102,6 +102,11 @@ zero, one, or several requests, and can update the repository only after it
 succeeds. It is therefore an orchestration abstraction, not a subtype of
 `RepositoryHttpRequest`.
 
+`context.request` accepts `2xx` responses by default and throws
+`UnexpectedStatusCodeException` otherwise, so a failed request does not run
+the action's state update. Actions that intentionally handle other statuses
+can provide `successfulCondition`.
+
 ```dart
 class TransactionActions extends RepositoryActions<List<Transaction>> {
   TransactionActions(super.context);

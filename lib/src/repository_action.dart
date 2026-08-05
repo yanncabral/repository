@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
+import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/repository_client.dart';
 
@@ -26,6 +27,10 @@ typedef RepositoryActionRunner0<Data, Output> =
 typedef RepositoryActionUpdate<Data, Output> =
     FutureOr<Data> Function(Data? current, Output output);
 
+/// Decides whether an action request response is successful.
+typedef RepositoryResponseCondition =
+    FutureOr<bool> Function(RepositoryHttpResponse response);
+
 /// Capabilities available while a repository action is running.
 class RepositoryActionContext<Data> {
   /// Creates an action context.
@@ -48,8 +53,21 @@ class RepositoryActionContext<Data> {
   Data? get currentValue => _read();
 
   /// Executes a request through the owning [RepositoryClient].
-  Future<RepositoryHttpResponse> request(RepositoryHttpRequest request) {
-    return client.call(request: request);
+  ///
+  /// By default, only `2xx` responses succeed. Use [successfulCondition] when
+  /// an action intentionally handles other status codes.
+  Future<RepositoryHttpResponse> request(
+    RepositoryHttpRequest request, {
+    RepositoryResponseCondition? successfulCondition,
+  }) async {
+    final response = await client.call(request: request);
+    final isSuccessful =
+        await successfulCondition?.call(response) ??
+        (response.statusCode >= 200 && response.statusCode < 300);
+    if (!isSuccessful) {
+      throw UnexpectedStatusCodeException(sent: request, received: response);
+    }
+    return response;
   }
 
   /// Emits data produced by an action.
