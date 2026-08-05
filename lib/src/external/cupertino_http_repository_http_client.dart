@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,9 +8,6 @@ import 'package:repository/src/infra/repository_logger.dart';
 import 'package:cupertino_http/cupertino_http.dart' as cupertino;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-
-typedef BearerToken = String;
-typedef TokenBuilder = FutureOr<BearerToken?> Function();
 
 class CupertinoHttpRepositoryHttpClient extends RepositoryHttpClient {
   const CupertinoHttpRepositoryHttpClient({this.tokenBuilder, super.mocks});

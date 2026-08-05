@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,9 +9,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 final _client = http.Client();
-
-typedef BearerToken = String;
-typedef TokenBuilder = FutureOr<BearerToken?> Function();
 
 /// {@template http_repository_http_client}
 /// A [RepositoryHttpClient] that uses `http` package.

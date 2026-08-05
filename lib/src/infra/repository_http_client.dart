@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show HttpClientRequest;
 
 import 'package:equatable/equatable.dart';
@@ -6,6 +7,9 @@ import 'package:meta/meta.dart';
 /// A type alias for bearer token String.
 /// Notice that this is just the token, without the `Bearer` prefix.
 typedef BearerToken = String;
+
+/// Builds the bearer token used to authenticate an HTTP request.
+typedef TokenBuilder = FutureOr<BearerToken?> Function();
 
 /// {@template repository_http_client}
 /// Abstract class for HTTP client to be used in http `Repositories`.

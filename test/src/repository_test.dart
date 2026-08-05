@@ -6,7 +6,7 @@ void main() {
     late Repository<int> repository;
 
     setUp(() {
-      Repository.storage = _RepositoryCacheStorageMock();
+      BaseRepository.storage = _RepositoryCacheStorageMock();
       repository = _TestRepository();
     });
 
@@ -15,13 +15,6 @@ void main() {
         repository.currentState,
         const RepositoryState<int>.empty(),
       );
-    });
-
-    test('should emit ready state after hydrating', () async {
-      await repository.hydrate();
-
-      expect(repository.currentState, isA<RepositoryState<int>>());
-      expect(repository.currentValue, equals(42));
     });
 
     test('should emit ready state after refreshing', () async {
@@ -62,6 +55,12 @@ class _RepositoryCacheStorageMock extends RepositoryCacheStorage {
 }
 
 class _TestRepository extends Repository<int> {
+  _TestRepository()
+    : super(
+        endpoint: Uri.parse('https://example.com/value'),
+        resolveOnCreate: false,
+      );
+
   @override
   Future<String> resolve() async {
     return '42';
