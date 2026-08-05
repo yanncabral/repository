@@ -11,8 +11,9 @@ void main() {
         httpClient: transport,
         storage: storage,
       );
-      final repository = Repository<int>(
+      final repository = Repository<int, RepositoryActions<int>>(
         client: client,
+        actions: RepositoryActions.new,
         endpoint: Uri.parse('https://example.com/value'),
         fromJson: int.parse,
         resolveOnCreate: false,
@@ -34,20 +35,22 @@ void main() {
   test('repository clients keep cache and transport state isolated', () async {
     final firstStorage = _InMemoryCacheStorage();
     final secondStorage = _InMemoryCacheStorage();
-    final first = Repository<int>(
+    final first = Repository<int, RepositoryActions<int>>(
       client: RepositoryClient(
         httpClient: _FakeHttpClient('1'),
         storage: firstStorage,
       ),
+      actions: RepositoryActions.new,
       endpoint: Uri.parse('https://example.com/value'),
       fromJson: int.parse,
       resolveOnCreate: false,
     );
-    final second = Repository<int>(
+    final second = Repository<int, RepositoryActions<int>>(
       client: RepositoryClient(
         httpClient: _FakeHttpClient('2'),
         storage: secondStorage,
       ),
+      actions: RepositoryActions.new,
       endpoint: Uri.parse('https://example.com/value'),
       fromJson: int.parse,
       resolveOnCreate: false,

@@ -6,6 +6,7 @@ import 'package:repository/src/domain/exceptions/network_unavailable_exception.d
 import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
+import 'package:repository/src/repository_action.dart';
 
 /// {@template http_repository}
 /// A `Repository` that fetches data from an HTTP endpoint.
@@ -31,8 +32,9 @@ import 'package:repository/src/infra/repository_logger.dart';
 /// }
 /// ```
 /// {@endtemplate}
-class Repository<Data> extends BaseRepository<Data>
-    with MutatorRepositoryMixin<Data> {
+class Repository<Data, Actions extends RepositoryActions<Data>>
+    extends BaseRepository<Data, Actions>
+    with MutatorRepositoryMixin<Data, Actions> {
   /// Creates an [Repository] that fetches data from an endpoint.
   ///
   /// The [endpoint] is the only required parameter when used directly.
@@ -43,6 +45,7 @@ class Repository<Data> extends BaseRepository<Data>
   /// refresh at the specified interval.
   Repository({
     required super.client,
+    required super.actions,
     required this.endpoint,
     this._fromJson,
     this._shouldRetryCondition,

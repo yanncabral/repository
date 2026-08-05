@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:repository/src/base_repository.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
+import 'package:repository/src/repository_action.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// {@template zip_repository}
@@ -28,7 +29,8 @@ import 'package:rxdart/rxdart.dart';
 /// }
 /// ```
 /// {@endtemplate}
-class ZipRepository<Data> extends BaseRepository<Data> {
+class ZipRepository<Data>
+    extends BaseRepository<Data, RepositoryActions<Data>> {
   /// Creates a [ZipRepository] that combines multiple [BaseRepository]s into one.
   ///
   /// The [repositories] is the only required parameter when used directly.
@@ -42,7 +44,7 @@ class ZipRepository<Data> extends BaseRepository<Data> {
     super.autoRefreshInterval,
     this._name,
     super.resolveOnCreate,
-  }) : super() {
+  }) : super(actions: RepositoryActions.new) {
     _combinedSubscription =
         CombineLatestStream(
           repositories.map((e) => e.stream.startWith(e.currentState)),
@@ -59,7 +61,7 @@ class ZipRepository<Data> extends BaseRepository<Data> {
   /// The list of [BaseRepository]s to combine.
   /// The [zipper] function will be called every time one of the [BaseRepository]s
   /// emits a new value.
-  final List<BaseRepository<dynamic>> repositories;
+  final List<BaseRepository<dynamic, dynamic>> repositories;
 
   Data _zipperInternal(List<RepositoryState<dynamic>> states) {
     final values = states

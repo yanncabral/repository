@@ -1,11 +1,12 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
 import 'package:repository/src/infra/repository_fiber.dart';
 import 'package:repository/src/repositories/http_repository.dart';
+import 'package:repository/src/repository_action.dart';
 import 'package:repository/src/repository_client.dart';
-import 'package:meta/meta.dart';
 import 'package:retry/retry.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -14,7 +15,8 @@ import 'package:rxdart/rxdart.dart';
 /// though a repository.
 /// For example, you can use this mixin to save data to a remote API
 /// when a user updates a profile.
-mixin MutatorRepositoryMixin<Data> on BaseRepository<Data> {
+mixin MutatorRepositoryMixin<Data, Actions extends RepositoryActions<Data>>
+    on BaseRepository<Data, Actions> {
   /// Propagates data to a remote source and updates the stream.
   Future<void> mutate(Data data);
 }
@@ -22,17 +24,19 @@ mixin MutatorRepositoryMixin<Data> on BaseRepository<Data> {
 /// A [BaseRepository] is a class that holds data and provides a stream.
 /// It can be used to fetch data from a remote source, cache it, and provide a
 /// stream of that data.
-abstract class BaseRepository<Data> {
+abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
   /// If [resolveOnCreate] is true, the repository will resolve itself on
   /// creation.
   /// If [autoRefreshInterval] is not null, the repository will refresh itself
   /// every [autoRefreshInterval].
   BaseRepository({
     required this.client,
+    required RepositoryActionsFactory<Data, Actions> actions,
     this.autoRefreshInterval,
     bool resolveOnCreate = true,
-    List<Repository<dynamic>>? dependencies,
-  }) : dependencies = dependencies ?? <Repository<dynamic>>[] {
+    List<BaseRepository<dynamic, dynamic>>? dependencies,
+  }) : _createActions = actions,
+       dependencies = dependencies ?? <BaseRepository<dynamic, dynamic>>[] {
     track();
 
     hydratate(refreshAfter: resolveOnCreate);
@@ -52,6 +56,7 @@ abstract class BaseRepository<Data> {
   factory BaseRepository.http({
     required RepositoryClient client,
     required Uri endpoint,
+    required RepositoryActionsFactory<Data, Actions> actions,
     Data Function(String json)? fromJson,
     FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
     Duration? autoRefreshInterval,
@@ -59,8 +64,9 @@ abstract class BaseRepository<Data> {
     bool resolveOnCreate = true,
     String? name,
   }) {
-    return Repository<Data>(
+    return Repository<Data, Actions>(
       client: client,
+      actions: actions,
       name: name,
       endpoint: endpoint,
       fromJson: fromJson,
@@ -71,7 +77,7 @@ abstract class BaseRepository<Data> {
     );
   }
 
-  void addDependency(Repository<dynamic> dependency) {
+  void addDependency(BaseRepository<dynamic, dynamic> dependency) {
     _unlistenToDependencies();
     dependencies.add(dependency);
     _listenToDependencies();
@@ -99,7 +105,8 @@ abstract class BaseRepository<Data> {
   }
 
   /// List of all repositories in memory. It's useful for debugging.
-  static final List<WeakReference<BaseRepository<dynamic>>> repositories = [];
+  static final List<WeakReference<BaseRepository<dynamic, dynamic>>>
+  repositories = [];
 
   /// Add the repository to the list of all repositories in memory if it's not
   /// already in the list.
@@ -146,6 +153,18 @@ abstract class BaseRepository<Data> {
 
   /// Infrastructure shared by this repository.
   final RepositoryClient client;
+
+  final RepositoryActionsFactory<Data, Actions> _createActions;
+
+  /// Typed operations exposed by this repository.
+  late final Actions actions = _createActions(
+    RepositoryActionContext<Data>(
+      client,
+      () => currentValue,
+      (data, datasource) => emit(data: data, datasource: datasource),
+      refresh,
+    ),
+  );
 
   /// Getter for the last value of the stream.
   /// Returns null if the stream is empty.
@@ -363,5 +382,5 @@ abstract class BaseRepository<Data> {
     (state) => state.map(ready: (state) => state.data, empty: (_) => null),
   );
 
-  final List<Repository<dynamic>> dependencies;
+  final List<BaseRepository<dynamic, dynamic>> dependencies;
 }

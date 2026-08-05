@@ -1,6 +1,7 @@
+import 'package:flutter/widgets.dart';
 import 'package:repository/src/base_repository.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
-import 'package:flutter/widgets.dart';
+import 'package:repository/src/repository_action.dart';
 
 /// {@template repository_builder}
 /// A package aimed at providing seamless integration between the
@@ -9,12 +10,12 @@ import 'package:flutter/widgets.dart';
 /// {@endtemplate}
 typedef RepositoryBuilderBuilder<
   Data,
-  CurrentRepo extends BaseRepository<Data>
+  Actions extends RepositoryActions<Data>
 > =
     Widget Function(
       BuildContext context,
       Data? snapshot,
-      CurrentRepo repository,
+      Actions actions,
     );
 
 /// A widget that builds itself based on the latest state of a repository.
@@ -37,9 +38,9 @@ typedef RepositoryBuilderBuilder<
 /// of items:
 ///
 /// ```dart
-/// RepositoryBuilder<List<Item>>(
+/// RepositoryBuilder(
 ///   repository: itemRepository,
-///   builder: (context, items) {
+///   builder: (context, items, actions) {
 ///     if (items == null) {
 ///      return const Center(child: CircularProgressIndicator());
 ///    } else {
@@ -55,7 +56,10 @@ typedef RepositoryBuilderBuilder<
 ///   },
 /// );
 /// ```
-class RepositoryBuilder<CurrentRepository extends BaseRepository<Data>, Data>
+class RepositoryBuilder<
+  Data,
+  RepositoryActionsType extends RepositoryActions<Data>
+>
     extends StatelessWidget {
   /// {@macro repository_builder}
   const RepositoryBuilder({
@@ -66,12 +70,12 @@ class RepositoryBuilder<CurrentRepository extends BaseRepository<Data>, Data>
 
   /// The repository to which this widget is connected.
   /// The builder is called whenever this repository changes.
-  final CurrentRepository repository;
+  final BaseRepository<Data, RepositoryActionsType> repository;
 
   /// The builder is called whenever this repository changes.
   /// It is passed the latest data from the repository, and it
   /// must return a widget.
-  final RepositoryBuilderBuilder<Data, CurrentRepository> builder;
+  final RepositoryBuilderBuilder<Data, RepositoryActionsType> builder;
 
   @override
   Widget build(BuildContext context) {
@@ -85,9 +89,9 @@ class RepositoryBuilder<CurrentRepository extends BaseRepository<Data>, Data>
           RepositoryStateReady(data: final data) => builder(
             context,
             data,
-            repository,
+            repository.actions,
           ),
-          _ => builder(context, null, repository),
+          _ => builder(context, null, repository.actions),
         };
       },
     );
