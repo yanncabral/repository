@@ -12,3 +12,6 @@ pubspec.lock
 
 # Conventional directory for build outputs
 build/
+
+# Local code-intelligence index
+codedb.snapshot
