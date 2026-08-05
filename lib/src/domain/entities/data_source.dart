@@ -7,6 +7,6 @@ enum RepositoryDatasource {
   local,
 
   /// The data was injected by the `update` method
-  /// of `PropagatingRepositoryMixin`.
+  /// of `MutatorRepositoryMixin`.
   optimistic,
 }

@@ -1,5 +1,5 @@
-import 'package:equatable/equatable.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
+import 'package:equatable/equatable.dart';
 
 /// {@template repository_state}
 /// A generic class that holds a value of the current state of the repository.
@@ -9,9 +9,8 @@ sealed class RepositoryState<Data> extends Equatable {
   const RepositoryState();
 
   /// Creates a [RepositoryState] that indicates that the repository is empty.
-  const factory RepositoryState.empty({
-    bool isLoading,
-  }) = RepositoryStateEmpty<Data>;
+  const factory RepositoryState.empty({bool isLoading}) =
+      RepositoryStateEmpty<Data>;
 
   /// Creates a [RepositoryState] that indicates that the repository is ready.
   /// It contains the data loaded by the repository.
@@ -46,9 +45,7 @@ sealed class RepositoryState<Data> extends Equatable {
 /// {@endtemplate}
 class RepositoryStateEmpty<Data> extends RepositoryState<Data> {
   /// {@macro repository_state_empty}
-  const RepositoryStateEmpty({
-    this.isLoading = false,
-  });
+  const RepositoryStateEmpty({this.isLoading = false});
 
   /// Whether the repository is loading data.
   final bool isLoading;
@@ -63,10 +60,7 @@ class RepositoryStateEmpty<Data> extends RepositoryState<Data> {
 /// {@endtemplate}
 class RepositoryStateReady<Data> extends RepositoryState<Data> {
   /// {@macro repository_state_ready}
-  const RepositoryStateReady({
-    required this.data,
-    required this.source,
-  });
+  const RepositoryStateReady({required this.data, required this.source});
 
   /// The data loaded by the repository.
   final Data data;

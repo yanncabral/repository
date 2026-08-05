@@ -1,6 +1,6 @@
+import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:meta/meta.dart';
-import 'package:repository/src/infra/repository_cache_storage.dart';
 
 /// {@template hive_repository_cache_storage}
 /// A cache storage implementation that uses Hive.
@@ -10,7 +10,7 @@ import 'package:repository/src/infra/repository_cache_storage.dart';
 /// {@endtemplate}
 class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
   /// {@macro hive_repository_cache_storage}
-  HiveRepositoryCacheStorage({required Box<String> box}) : _box = box;
+  HiveRepositoryCacheStorage({required this._box});
 
   @protected
   late final Box<String> _box;

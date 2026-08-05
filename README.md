@@ -4,7 +4,7 @@
 [![Powered by Mason](https://img.shields.io/endpoint?url=https%3A%2F%2Ftinyurl.com%2Fmason-badge)](https://github.com/felangel/mason)
 [![License: MIT][license_badge]][license_link]
 
-The all-in-one solution for fetching remote data from a REST API using the power of caching and auto refresh.
+A reactive repository toolkit for Flutter with HTTP, caching, dependency tracking, auto refresh, and UI integration.
 
 ## Warning ⚠️
 
@@ -18,19 +18,19 @@ We appreciate your patience and understanding as we work to bring this package t
 
 ## Installation 💻
 
-**❗ In order to start using Repository you must have the [Dart SDK][dart_install_link] installed on your machine.**
+**❗ Repository now includes its Flutter integration, so a Flutter SDK is required.**
 
 Add `repository` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  repository: ^3.0.0
+  repository: ^4.0.0-dev.1
 ```
 
 Install it:
 
 ```sh
-dart pub get
+flutter pub get
 ```
 
 ---
@@ -48,9 +48,7 @@ Out of the box, on each pull request and push, the CI `formats`, `lints`, and `t
 To run all unit tests:
 
 ```sh
-dart pub global activate coverage 1.2.0
-dart test --coverage=coverage
-dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info
+flutter test --coverage
 ```
 
 To view the generated coverage report you can use [lcov](https://github.com/linux-test-project/lcov).
@@ -63,7 +61,6 @@ genhtml coverage/lcov.info -o coverage/
 open coverage/index.html
 ```
 
-[dart_install_link]: https://dart.dev/get-dart
 [github_actions_link]: https://docs.github.com/en/actions/learn-github-actions
 [license_badge]: https://img.shields.io/badge/license-MIT-blue.svg
 [license_link]: https://opensource.org/licenses/MIT

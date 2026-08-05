@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 /// {@template fiber}
 /// A fiber is a class that ensures that only
@@ -22,18 +23,31 @@ class RepositoryFiber<Data> {
   /// wait for it to complete.
   /// If there is no running async function, it will run the
   /// function and complete the `Future`.
-  Future<Data> run(Future<Data> Function() fn) async {
-    if (isBusy) {
-      // If there is a completer and completer is not completed, wait for it.
+  Future<Data> run(Future<Data> Function() fn, {String? name}) async {
+    log('[RepositoryFiber] Running fiber $name');
+    final currentCompleter = _completer;
 
-      return _completer!.future;
-    } else {
-      // If there is no completer or completer is completed, create a new one.
-      _completer = Completer();
+    if (currentCompleter != null && !currentCompleter.isCompleted) {
+      return currentCompleter.future;
+    }
+
+    log('[RepositoryFiber] Creating new completer for $name');
+    final newCompleter = Completer<Data>();
+    _completer = newCompleter;
+
+    try {
+      log('[RepositoryFiber] Executing function $name');
       final response = await fn();
-      _completer?.complete(response);
-
+      log('[RepositoryFiber] Completing completer for $name');
+      newCompleter.complete(response);
       return response;
+    } catch (e, stackTrace) {
+      log('[RepositoryFiber] Completing completer with error for $name');
+      newCompleter.completeError(e, stackTrace);
+      rethrow;
+    } finally {
+      log('[RepositoryFiber] Completing fiber $name');
+      _completer = null;
     }
   }
 }

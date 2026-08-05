@@ -1,3 +1,14 @@
+## [4.0.0-dev.1] - Unreleased
+
+* Merge the Flutter integration into the main `repository` package.
+* Add repository dependencies, nullable resolution, hydration coordination,
+  and exception-safe fibers.
+* Add multi-method HTTP requests, request bodies, mocks, token builders,
+  platform-specific clients, and network-unavailable errors.
+* Make `ZipRepository` react to changes from its child repositories.
+* Replace the old `Repository` base class with `BaseRepository` and use
+  `Repository` as the concrete HTTP implementation.
+
 ## [3.0.0] - 2023-05-22
 
 * Major rewrite of all repository package to be more efficient and gracefully
