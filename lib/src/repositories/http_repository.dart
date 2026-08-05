@@ -4,7 +4,6 @@ import 'dart:io' show SocketException;
 import 'package:repository/src/base_repository.dart';
 import 'package:repository/src/domain/exceptions/network_unavailable_exception.dart';
 import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
-import 'package:repository/src/external/platform_http_client.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
 
@@ -43,6 +42,7 @@ class Repository<Data> extends BaseRepository<Data>
   /// If [autoRefreshInterval] is not null, the repository will automatically
   /// refresh at the specified interval.
   Repository({
+    required super.client,
     required this.endpoint,
     this._fromJson,
     this._shouldRetryCondition,
@@ -74,12 +74,6 @@ class Repository<Data> extends BaseRepository<Data>
   @override
   final String? tag;
 
-  /// The http client used to fetch data from the endpoint.
-  /// This is a monostate, so it will be shared across all instances of
-  /// [Repository].
-  static final RepositoryHttpClient _client = createPlatformHttpClient();
-  RepositoryHttpClient get client => _client;
-
   @override
   String get name => _name ?? endpoint.path.split('/').last;
 
@@ -108,7 +102,7 @@ class Repository<Data> extends BaseRepository<Data>
         final result = response.body;
         return result;
       } else {
-        BaseRepository.logger(
+        client.logger(
           'Repository($name): Failed to resolve [$endpoint]. '
           'status code: ${response.statusCode}',
         );
@@ -126,7 +120,7 @@ class Repository<Data> extends BaseRepository<Data>
       /// if the user is offline, the request will fail.
       /// if [onSocketException] is not null, we call it.
       /// if [onSocketException] is null, we rethrow the exception.
-      BaseRepository.logger(
+      client.logger(
         'Repository($name): throws [${exception.runtimeType}].',
         level: RepositoryLoggingLevel.warning,
       );

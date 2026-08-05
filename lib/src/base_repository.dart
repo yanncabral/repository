@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
-import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_fiber.dart';
-import 'package:repository/src/infra/repository_logger.dart';
 import 'package:repository/src/repositories/http_repository.dart';
+import 'package:repository/src/repository_client.dart';
 import 'package:meta/meta.dart';
 import 'package:retry/retry.dart';
 import 'package:rxdart/rxdart.dart';
@@ -29,6 +28,7 @@ abstract class BaseRepository<Data> {
   /// If [autoRefreshInterval] is not null, the repository will refresh itself
   /// every [autoRefreshInterval].
   BaseRepository({
+    required this.client,
     this.autoRefreshInterval,
     bool resolveOnCreate = true,
     List<Repository<dynamic>>? dependencies,
@@ -50,6 +50,7 @@ abstract class BaseRepository<Data> {
 
   /// {@macro http_repository}
   factory BaseRepository.http({
+    required RepositoryClient client,
     required Uri endpoint,
     Data Function(String json)? fromJson,
     FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
@@ -59,6 +60,7 @@ abstract class BaseRepository<Data> {
     String? name,
   }) {
     return Repository<Data>(
+      client: client,
       name: name,
       endpoint: endpoint,
       fromJson: fromJson,
@@ -142,12 +144,8 @@ abstract class BaseRepository<Data> {
   @protected
   final _controller = BehaviorSubject<RepositoryState<Data>>();
 
-  /// Monostate cache service to save data locally. It should be initialized
-  /// before using any repository.
-  static late RepositoryCacheStorage storage;
-
-  /// Monostate logger service to log messages.
-  static RepositoryLogger logger = const RepositoryLogger.dev();
+  /// Infrastructure shared by this repository.
+  final RepositoryClient client;
 
   /// Getter for the last value of the stream.
   /// Returns null if the stream is empty.
@@ -194,7 +192,7 @@ abstract class BaseRepository<Data> {
   // Default methods
 
   /// Clears the cache.
-  Future<void> clearCache() => storage.delete(key: key);
+  Future<void> clearCache() => client.storage.delete(key: key);
 
   /// Gets the data from the cache, if it exists, and emits it to the stream.
   @visibleForTesting
@@ -203,7 +201,7 @@ abstract class BaseRepository<Data> {
     return _hydratationFiber.run(name: name, () async {
       final stopwatch = Stopwatch()..start();
       try {
-        final cachedDataString = await storage.read(key: key);
+        final cachedDataString = await client.storage.read(key: key);
 
         if (cachedDataString != null) {
           final data = await _emitRawData(cachedDataString);
@@ -213,7 +211,7 @@ abstract class BaseRepository<Data> {
           return data;
         }
       } on FormatException catch (e) {
-        logger.call(
+        client.logger.call(
           'Repository($name): Error while hydrating repository $key: $e.'
           ' The cache will be cleared.',
         );
@@ -221,7 +219,7 @@ abstract class BaseRepository<Data> {
         await clearCache();
       } finally {
         stopwatch.stop();
-        logger.call(
+        client.logger.call(
           'Repository($name): '
           'hydrated in ${stopwatch.elapsedMilliseconds}ms',
         );
@@ -248,7 +246,7 @@ abstract class BaseRepository<Data> {
     // We do not need to persist if it comes from the cache or
     // if the data is optimistic.
     if (datasource == RepositoryDatasource.remote) {
-      await storage.write(key: key, value: rawData);
+      await client.storage.write(key: key, value: rawData);
     }
 
     return data;
@@ -261,7 +259,7 @@ abstract class BaseRepository<Data> {
       () => refreshFiber.run(name: name, _refresh),
       retryIf: shouldRetry,
       onRetry: (exception) {
-        logger('Repository($name): Retrying refresh...');
+        client.logger('Repository($name): Retrying refresh...');
       },
     );
   }
@@ -287,7 +285,7 @@ abstract class BaseRepository<Data> {
     // Log the time it took to refresh
     final after = DateTime.now();
     final timeSpent = after.difference(before);
-    BaseRepository.logger(
+    client.logger(
       'Repository($name): refreshed in'
       ' ${timeSpent.inMilliseconds}ms',
     );
@@ -318,7 +316,7 @@ abstract class BaseRepository<Data> {
     required Data data,
     RepositoryDatasource datasource = RepositoryDatasource.local,
   }) async {
-    logger('Emitting data to repository $name: $data');
+    client.logger('Emitting data to repository $name: $data');
     _controller.add(RepositoryState.ready(data: data, source: datasource));
   }
 

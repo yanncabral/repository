@@ -1,11 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:repository/src/base_repository.dart';
 import 'package:repository/src/domain/exceptions/network_unavailable_exception.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
-import 'package:repository/src/infra/repository_logger.dart';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 final _client = http.Client();
@@ -38,15 +35,6 @@ class HttpRepositoryHttpClient extends RepositoryHttpClient {
           ? null
           : jsonEncode(request.body);
 
-      final metadata = <String, String>{
-        'method': request.method.name.toUpperCase(),
-        'url': request.url.toString(),
-        'headers': _hideJwt(headers.toString()),
-        'body': encodedBody ?? '',
-      };
-
-      BaseRepository.logger('[REQUEST] $metadata');
-
       final mockedResponse = super.findMock(request);
 
       if (mockedResponse != null) {
@@ -77,39 +65,15 @@ class HttpRepositoryHttpClient extends RepositoryHttpClient {
         ),
       };
 
-      BaseRepository.logger(
-        '[RESPONSE] ${response.statusCode} ${_hideJwt(response.body)}]',
-      );
-
       return RepositoryHttpResponse(
         statusCode: response.statusCode,
         body: response.body,
         headers: response.headers,
       );
     } on SocketException catch (e) {
-      BaseRepository.logger(
-        'SocketException: ${request.url}',
-        level: RepositoryLoggingLevel.error,
-      );
       throw NetworkUnavailableException(e);
     } on http.ClientException catch (e) {
-      BaseRepository.logger(
-        'ClientException: ${request.url}',
-        level: RepositoryLoggingLevel.error,
-      );
       throw NetworkUnavailableException(e);
     }
-  }
-
-  static final RegExp _jwtRegex = RegExp(r'((?:[\w-]*\.){2}[\w-]*)');
-  String _hideJwt(String raw) {
-    var result = raw;
-    if (kDebugMode) {
-      return raw;
-    }
-    for (final match in _jwtRegex.allMatches(raw)) {
-      result = result.replaceRange(match.start, match.end, 'hidden');
-    }
-    return result;
   }
 }

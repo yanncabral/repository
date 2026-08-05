@@ -36,6 +36,7 @@ class ZipRepository<Data> extends BaseRepository<Data> {
   /// The [zipper] function takes a list of data from each repository and returns
   /// a single combined data.
   ZipRepository({
+    required super.client,
     required this.repositories,
     this._zipper,
     super.autoRefreshInterval,
@@ -123,7 +124,7 @@ class ZipRepository<Data> extends BaseRepository<Data> {
     );
 
     stopwatch.stop();
-    BaseRepository.logger.call(
+    client.logger.call(
       'Repository($name): '
       'hydrated in ${stopwatch.elapsedMilliseconds}ms',
     );

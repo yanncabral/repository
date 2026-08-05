@@ -16,4 +16,5 @@ export 'src/infra/repository_http_client.dart';
 export 'src/infra/repository_logger.dart';
 export 'src/repositories/http_repository.dart';
 export 'src/repositories/zip_repository.dart';
+export 'src/repository_client.dart';
 export 'src/repository_flutter.dart';

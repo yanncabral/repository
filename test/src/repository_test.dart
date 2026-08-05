@@ -6,8 +6,12 @@ void main() {
     late Repository<int> repository;
 
     setUp(() {
-      BaseRepository.storage = _RepositoryCacheStorageMock();
-      repository = _TestRepository();
+      repository = _TestRepository(
+        RepositoryClient(
+          httpClient: const HttpRepositoryHttpClient(),
+          storage: _RepositoryCacheStorageMock(),
+        ),
+      );
     });
 
     test('should emit empty state on creation', () {
@@ -55,8 +59,9 @@ class _RepositoryCacheStorageMock extends RepositoryCacheStorage {
 }
 
 class _TestRepository extends Repository<int> {
-  _TestRepository()
+  _TestRepository(RepositoryClient client)
     : super(
+        client: client,
         endpoint: Uri.parse('https://example.com/value'),
         resolveOnCreate: false,
       );
