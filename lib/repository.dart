@@ -1,6 +1,6 @@
 /// A reactive repository toolkit for Flutter with HTTP, caching,
 /// dependency tracking, auto refresh, and UI integration.
-library repository;
+library;
 
 export 'src/base_repository.dart';
 export 'src/domain/entities/data_source.dart';

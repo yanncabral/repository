@@ -20,6 +20,7 @@ abstract class RepositoryHttpClient {
   /// {@macro repository_http_client}
   const RepositoryHttpClient({this.mocks});
 
+  /// Responses returned without reaching the transport.
   final Map<RepositoryHttpMockedRequest, RepositoryHttpResponse>? mocks;
 
   /// Makes a HTTP `get` request using [HttpClientRequest].
@@ -66,14 +67,28 @@ class RepositoryHttpResponse {
   }
 }
 
-/// A type alias for the HTTP method.
-enum RepositoryHttpMethod { get, post, put, delete, patch }
+/// HTTP methods supported by repository requests.
+enum RepositoryHttpMethod {
+  /// An HTTP GET request.
+  get,
+
+  /// An HTTP POST request.
+  post,
+
+  /// An HTTP PUT request.
+  put,
+
+  /// An HTTP DELETE request.
+  delete,
+
+  /// An HTTP PATCH request.
+  patch,
+}
 
 /// {@template repository_http_request}
 /// This is used by [RepositoryHttpClient] to make HTTP requests.
 /// You can use this class to create your own HTTP client,
 /// or just use the default one.
-/// But notice that Repositories will only use `GET` method.
 /// {@endtemplate}
 class RepositoryHttpRequest {
   /// {@macro repository_http_request}
@@ -102,7 +117,9 @@ class RepositoryHttpRequest {
   }
 }
 
+/// Identifies a mocked request by URL and method.
 class RepositoryHttpMockedRequest extends Equatable {
+  /// Creates a mocked request identifier.
   const RepositoryHttpMockedRequest({required this.url, required this.method});
 
   /// The url of the request.

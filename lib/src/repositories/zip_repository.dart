@@ -27,18 +27,19 @@ import 'package:rxdart/rxdart.dart';
 ///       : super(client: client, repositories: [repo1, repo2]);
 ///
 ///   @override
-///   CombinedData zipper(List<dynamic> values) => CombinedData.fromValues(values);
+///   CombinedData zipper(List<dynamic> values) {
+///     return CombinedData.fromValues(values);
+///   }
 /// }
 /// ```
 /// {@endtemplate}
 class ZipRepository<Data>
     extends BaseRepository<Data, RepositoryActions<Data>> {
-  /// Creates a [ZipRepository] that combines multiple [BaseRepository]s into one.
+  /// Creates a repository that combines multiple [BaseRepository] instances.
   ///
   /// The [repositories] is the only required parameter when used directly.
-  /// The [zipper] function is optional and can be overridden for inheritance usage.
-  /// The [zipper] function takes a list of data from each repository and returns
-  /// a single combined data.
+  /// The [zipper] function can be overridden when using inheritance. It takes
+  /// data from each repository and returns one combined value.
   ZipRepository({
     required super.client,
     required this.repositories,
@@ -52,7 +53,7 @@ class ZipRepository<Data>
           repositories.map((e) => e.stream.startWith(e.currentState)),
           _zipperInternal,
         ).listen((data) {
-          emit(data: data);
+          unawaited(emit(data: data));
         });
   }
 
@@ -61,8 +62,7 @@ class ZipRepository<Data>
   late final StreamSubscription<Data> _combinedSubscription;
 
   /// The list of [BaseRepository]s to combine.
-  /// The [zipper] function will be called every time one of the [BaseRepository]s
-  /// emits a new value.
+  /// The [zipper] function runs whenever a child repository emits a value.
   final List<BaseRepository<dynamic, dynamic>> repositories;
 
   Data _zipperInternal(List<RepositoryState<dynamic>> states) {
@@ -82,7 +82,7 @@ class ZipRepository<Data>
 
     // Default implementation - should be overridden
     throw UnimplementedError(
-      'Either provide a zipper function in constructor or override zipper method',
+      'Provide a zipper function or override the zipper method.',
     );
   }
 
@@ -149,7 +149,7 @@ class ZipRepository<Data>
 
   @override
   void dispose() {
-    _combinedSubscription.cancel();
+    unawaited(_combinedSubscription.cancel());
     super.dispose();
   }
 }

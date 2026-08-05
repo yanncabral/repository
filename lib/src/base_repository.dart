@@ -39,12 +39,12 @@ abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
        dependencies = dependencies ?? <BaseRepository<dynamic, dynamic>>[] {
     track();
 
-    hydratate(refreshAfter: resolveOnCreate);
+    unawaited(hydratate(refreshAfter: resolveOnCreate));
 
     if (autoRefreshInterval != null) {
       timer = Timer.periodic(autoRefreshInterval!, (_) {
         if (_controller.hasListener) {
-          refresh();
+          unawaited(refresh());
         }
       });
     }
@@ -77,6 +77,7 @@ abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
     );
   }
 
+  /// Adds a repository that triggers a refresh when it emits ready data.
   void addDependency(BaseRepository<dynamic, dynamic> dependency) {
     _unlistenToDependencies();
     dependencies.add(dependency);
@@ -90,7 +91,7 @@ abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
       dependencies.map(
         (dependency) => dependency.stream.listen((state) {
           if (state is RepositoryStateReady) {
-            refresh();
+            unawaited(refresh());
           }
         }),
       ),
@@ -99,7 +100,7 @@ abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
 
   void _unlistenToDependencies() {
     for (final subscription in _subscriptions) {
-      subscription.cancel();
+      unawaited(subscription.cancel());
     }
     _subscriptions.clear();
   }
@@ -195,6 +196,7 @@ abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
   @protected
   final _hydratationFiber = RepositoryFiber<Data?>();
 
+  /// Completes after the first cache hydration attempt.
   @protected
   final Completer<Data?> hydratationCompleter = Completer<Data?>();
 
@@ -205,7 +207,7 @@ abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
   void dispose() {
     timer?.cancel();
     _unlistenToDependencies();
-    _controller.close();
+    unawaited(_controller.close());
   }
 
   // Default methods
@@ -378,9 +380,12 @@ abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
   /// The data will be refreshed every [autoRefreshInterval].
   /// The data will be refreshed when [refresh] is called.
   late final Stream<RepositoryState<Data>> stream = _controller.stream;
+
+  /// Emits only repository data, or `null` while the repository is empty.
   late final Stream<Data?> dataStream = stream.map(
     (state) => state.map(ready: (state) => state.data, empty: (_) => null),
   );
 
+  /// Repositories whose ready emissions invalidate this repository.
   final List<BaseRepository<dynamic, dynamic>> dependencies;
 }

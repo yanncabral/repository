@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
 import 'package:repository/src/domain/exceptions/network_unavailable_exception.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
-import 'package:http/http.dart' as http;
 
 final _client = http.Client();
 

@@ -1,5 +1,5 @@
-import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:equatable/equatable.dart';
+import 'package:repository/src/domain/entities/data_source.dart';
 
 /// {@template repository_state}
 /// A generic class that holds a value of the current state of the repository.

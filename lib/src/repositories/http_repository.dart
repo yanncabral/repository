@@ -46,7 +46,8 @@ class Repository<Data, Actions extends RepositoryActions<Data>>
   /// Creates an [Repository] that fetches data from an endpoint.
   ///
   /// The [endpoint] is the only required parameter when used directly.
-  /// The [fromJson] function is optional and defaults to returning the json as is.
+  /// The [fromJson] function is optional and defaults to returning the JSON
+  /// unchanged.
   /// The [autoRefreshInterval] is optional and defaults to null.
   /// The [resolveOnCreate] is optional and defaults to true.
   /// If [autoRefreshInterval] is not null, the repository will automatically
@@ -66,6 +67,7 @@ class Repository<Data, Actions extends RepositoryActions<Data>>
     super.dependencies,
   }) : super();
 
+  /// HTTP method used when resolving this repository.
   final RepositoryHttpMethod method;
   final String? _name;
   final Data Function(String json)? _fromJson;

@@ -1,6 +1,6 @@
-import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:meta/meta.dart';
+import 'package:repository/src/infra/repository_cache_storage.dart';
 
 /// {@template hive_repository_cache_storage}
 /// A cache storage implementation that uses Hive.
@@ -35,7 +35,7 @@ class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
     final hashedKey = hashKey(key);
     try {
       return _inMemoryCache[hashedKey] ?? _box.get(hashedKey);
-    } catch (e) {
+    } on Object {
       await _box.delete(hashedKey);
       return null;
     }
