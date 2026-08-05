@@ -28,7 +28,7 @@ typedef RepositoryBuilderBuilder<
 ///
 /// To use this widget, you must provide a repository and a builder function.
 /// The builder function is called whenever the repository changes. It is
-/// passed the latest data from the repository, and it must return a widget.
+/// passed the latest data and typed actions, and it must return a widget.
 ///
 /// If the repository is not ready, the builder function is called with a null
 /// data value. This can happen when the repository has not yet fetched any

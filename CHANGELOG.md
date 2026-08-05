@@ -1,5 +1,11 @@
 ## [4.0.0-dev.1] - Unreleased
 
+* Add configurable, isolated `RepositoryClient` instances.
+* Add ordered `RepositoryInterceptor` middleware with replay support.
+* Add typed `RepositoryAction` containers and expose them through
+  `RepositoryBuilder`.
+* Replace monostate cache, logger, and HTTP configuration with explicit client
+  injection.
 * Merge the Flutter integration into the main `repository` package.
 * Add repository dependencies, nullable resolution, hydration coordination,
   and exception-safe fibers.

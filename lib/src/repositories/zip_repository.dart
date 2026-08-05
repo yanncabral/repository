@@ -14,6 +14,7 @@ import 'package:rxdart/rxdart.dart';
 /// Direct usage:
 /// ```dart
 /// final repo = ZipRepository<CombinedData>(
+///   client: client,
 ///   repositories: [repo1, repo2, repo3],
 ///   zipper: (values) => CombinedData.fromValues(values),
 /// );
@@ -22,7 +23,8 @@ import 'package:rxdart/rxdart.dart';
 /// By inheritance:
 /// ```dart
 /// class MyCombinedRepository extends ZipRepository<CombinedData> {
-///   MyCombinedRepository() : super(repositories: [repo1, repo2]);
+///   MyCombinedRepository()
+///       : super(client: client, repositories: [repo1, repo2]);
 ///
 ///   @override
 ///   CombinedData zipper(List<dynamic> values) => CombinedData.fromValues(values);

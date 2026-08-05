@@ -16,16 +16,24 @@ import 'package:repository/src/repository_action.dart';
 ///
 /// Direct usage:
 /// ```dart
-/// final repo = Repository<MyData>(
+/// final repo = Repository<MyData, RepositoryActions<MyData>>(
+///   client: client,
 ///   endpoint: Uri.parse('https://api.example.com/data'),
 ///   fromJson: (json) => MyData.fromJson(json),
+///   actions: RepositoryActions.new,
 /// );
 /// ```
 ///
 /// By inheritance:
 /// ```dart
-/// class MyRepository extends Repository<MyData> {
-///   MyRepository() : super(endpoint: Uri.parse('https://api.example.com/data'));
+/// class MyRepository
+///     extends Repository<MyData, RepositoryActions<MyData>> {
+///   MyRepository()
+///       : super(
+///           client: client,
+///           endpoint: Uri.parse('https://api.example.com/data'),
+///           actions: RepositoryActions.new,
+///         );
 ///
 ///   @override
 ///   MyData fromJson(String json) => MyData.fromJson(json);

@@ -33,6 +33,139 @@ Install it:
 flutter pub get
 ```
 
+## Configure a client
+
+`RepositoryClient` owns the infrastructure shared by a group of repositories.
+Create separate clients when repositories must not share transport, cache,
+logging, or interceptors.
+
+```dart
+final client = RepositoryClient(
+  httpClient: createPlatformHttpClient(),
+  storage: await HiveRepositoryCacheStorage.create(),
+  interceptors: [
+    authenticationInterceptor,
+  ],
+);
+```
+
+Every repository receives its client explicitly:
+
+```dart
+final repository = Repository<int, RepositoryActions<int>>(
+  client: client,
+  endpoint: Uri.parse('https://example.com/count'),
+  fromJson: int.parse,
+  actions: RepositoryActions.new,
+);
+```
+
+`RepositoryActions<Data>` is the empty actions container for read-only
+repositories.
+
+## Interceptors
+
+`RepositoryInterceptor` is middleware around the configured HTTP adapter.
+Interceptors run in declaration order and may transform requests, transform
+responses, handle failures, short-circuit the transport, or invoke `next`
+again. The latter enables session refresh followed by a single replay.
+
+```dart
+class HeaderInterceptor implements RepositoryInterceptor {
+  const HeaderInterceptor();
+
+  @override
+  Future<RepositoryHttpResponse> intercept({
+    required RepositoryHttpRequest request,
+    required RepositoryRequestHandler next,
+  }) {
+    return next(
+      RepositoryHttpRequest(
+        url: request.url,
+        method: request.method,
+        body: request.body,
+        headers: {...request.headers, 'X-App': 'example'},
+      ),
+    );
+  }
+}
+```
+
+Authentication remains application-specific. A session interceptor can read
+the current token, refresh the session on `401`, and replay once. This keeps
+authentication consistent for repository refreshes and custom actions.
+
+## Actions
+
+Actions are named, typed operations bound to a repository. An action may make
+zero, one, or several requests, and can update the repository only after it
+succeeds. It is therefore an orchestration abstraction, not a subtype of
+`RepositoryHttpRequest`.
+
+```dart
+class TransactionActions extends RepositoryActions<List<Transaction>> {
+  TransactionActions(super.context);
+
+  late final RepositoryAction<CreateTransaction, Transaction>
+  createNewTransaction = action(
+    run: (context, input) async {
+      final response = await context.request(
+        RepositoryHttpRequest(
+          url: Uri.parse('https://example.com/transactions'),
+          method: RepositoryHttpMethod.post,
+          body: input.toJson(),
+        ),
+      );
+      return Transaction.fromJson(response.body);
+    },
+    update: (current, created) => [...?current, created],
+  );
+}
+
+final transactions = Repository<List<Transaction>, TransactionActions>(
+  client: client,
+  endpoint: Uri.parse('https://example.com/transactions'),
+  fromJson: Transaction.listFromJson,
+  actions: TransactionActions.new,
+);
+```
+
+Actions without input use `RepositoryAction0<Output>`, which is useful for
+operations such as logout or refresh commands.
+
+## Flutter
+
+`RepositoryBuilder` infers both the data and actions types from the repository:
+
+```dart
+RepositoryBuilder(
+  repository: transactions,
+  builder: (context, data, actions) {
+    if (data == null) {
+      return const CircularProgressIndicator();
+    }
+
+    return ElevatedButton(
+      onPressed: () => actions.createNewTransaction(input),
+      child: const Text('Create transaction'),
+    );
+  },
+);
+```
+
+## Migration from the monostate API
+
+- Replace `BaseRepository.storage` and `BaseRepository.logger` configuration
+  with a `RepositoryClient` instance.
+- Pass `client:` and `actions:` when declaring a repository.
+- Use `Repository<Data, RepositoryActions<Data>>` for repositories without
+  custom actions.
+- The third `RepositoryBuilder` callback argument is now the typed actions
+  container instead of the repository.
+- Move request-wide authentication and retry behavior from repository mixins
+  into a `RepositoryInterceptor`. A thin session mixin may still gate refresh
+  and declare reactive session dependencies.
+
 ---
 
 ## Continuous Integration 🤖
