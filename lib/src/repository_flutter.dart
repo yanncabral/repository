@@ -1,17 +1,13 @@
 import 'package:flutter/widgets.dart';
 import 'package:repository/src/base_repository.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
-import 'package:repository/src/repository_action.dart';
 
 /// {@template repository_builder}
 /// A package aimed at providing seamless integration between the
 /// repository library and Flutter, creating a communication
 /// widget between them.
 /// {@endtemplate}
-typedef RepositoryBuilderBuilder<
-  Data,
-  Actions extends RepositoryActions<Data>
-> =
+typedef RepositoryBuilderBuilder<Data, Actions> =
     Widget Function(
       BuildContext context,
       Data? snapshot,
@@ -56,11 +52,7 @@ typedef RepositoryBuilderBuilder<
 ///   },
 /// );
 /// ```
-class RepositoryBuilder<
-  Data,
-  RepositoryActionsType extends RepositoryActions<Data>
->
-    extends StatelessWidget {
+class RepositoryBuilder<Data, RepositoryActionsType> extends StatelessWidget {
   /// {@macro repository_builder}
   const RepositoryBuilder({
     required this.repository,

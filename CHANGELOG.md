@@ -2,8 +2,8 @@
 
 * Add configurable, isolated `RepositoryClient` instances.
 * Add ordered `RepositoryInterceptor` middleware with replay support.
-* Add typed `RepositoryAction` containers and expose them through
-  `RepositoryBuilder`.
+* Add typed action records declared directly by repository subclasses and
+  expose their closures through `RepositoryBuilder`.
 * Replace monostate cache, logger, and HTTP configuration with explicit client
   injection.
 * Merge the Flutter integration into the main `repository` package.

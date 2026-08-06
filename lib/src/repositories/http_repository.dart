@@ -6,7 +6,6 @@ import 'package:repository/src/domain/exceptions/network_unavailable_exception.d
 import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
-import 'package:repository/src/repository_action.dart';
 
 /// {@template http_repository}
 /// A `Repository` that fetches data from an HTTP endpoint.
@@ -16,32 +15,33 @@ import 'package:repository/src/repository_action.dart';
 ///
 /// Direct usage:
 /// ```dart
-/// final repo = Repository<MyData, RepositoryActions<MyData>>(
+/// final repo = Repository<MyData, NoRepositoryActions>(
 ///   client: client,
 ///   endpoint: Uri.parse('https://api.example.com/data'),
 ///   fromJson: (json) => MyData.fromJson(json),
-///   actions: RepositoryActions.new,
+///   actions: () => (),
 /// );
 /// ```
 ///
 /// By inheritance:
 /// ```dart
 /// class MyRepository
-///     extends Repository<MyData, RepositoryActions<MyData>> {
+///     extends Repository<MyData, NoRepositoryActions> {
 ///   MyRepository()
 ///       : super(
 ///           client: client,
 ///           endpoint: Uri.parse('https://api.example.com/data'),
-///           actions: RepositoryActions.new,
 ///         );
+///
+///   @override
+///   final NoRepositoryActions actions = ();
 ///
 ///   @override
 ///   MyData fromJson(String json) => MyData.fromJson(json);
 /// }
 /// ```
 /// {@endtemplate}
-class Repository<Data, Actions extends RepositoryActions<Data>>
-    extends BaseRepository<Data, Actions>
+class Repository<Data, Actions> extends BaseRepository<Data, Actions>
     with MutatorRepositoryMixin<Data, Actions> {
   /// Creates an [Repository] that fetches data from an endpoint.
   ///
@@ -54,8 +54,8 @@ class Repository<Data, Actions extends RepositoryActions<Data>>
   /// refresh at the specified interval.
   Repository({
     required super.client,
-    required super.actions,
     required this.endpoint,
+    super.actions,
     this._fromJson,
     this._shouldRetryCondition,
     super.resolveOnCreate,

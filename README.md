@@ -52,16 +52,16 @@ final client = RepositoryClient(
 Every repository receives its client explicitly:
 
 ```dart
-final repository = Repository<int, RepositoryActions<int>>(
+final repository = Repository<int, NoRepositoryActions>(
   client: client,
   endpoint: Uri.parse('https://example.com/count'),
   fromJson: int.parse,
-  actions: RepositoryActions.new,
+  actions: () => (),
 );
 ```
 
-`RepositoryActions<Data>` is the empty actions container for read-only
-repositories.
+`NoRepositoryActions` is the empty record used by directly instantiated,
+read-only repositories. Repository subclasses can override `actions` instead.
 
 ## Interceptors
 
@@ -97,46 +97,64 @@ authentication consistent for repository refreshes and custom actions.
 
 ## Actions
 
-Actions are named, typed operations bound to a repository. An action may make
-zero, one, or several requests, and can update the repository only after it
-succeeds. It is therefore an orchestration abstraction, not a subtype of
-`RepositoryHttpRequest`.
+Actions are ordinary typed Dart functions grouped in a named record and
+declared directly by a repository subclass. An action may make zero, one, or
+several requests and can update the repository only after it succeeds.
 
-`context.request` accepts `2xx` responses by default and throws
+The protected `request` method accepts `2xx` responses by default and throws
 `UnexpectedStatusCodeException` otherwise, so a failed request does not run
 the action's state update. Actions that intentionally handle other statuses
 can provide `successfulCondition`.
 
 ```dart
-class TransactionActions extends RepositoryActions<List<Transaction>> {
-  TransactionActions(super.context);
+typedef TransactionActions = ({
+  Future<Transaction> Function(CreateTransaction input) create,
+  Future<void> Function() logout,
+});
 
-  late final RepositoryAction<CreateTransaction, Transaction>
-  createNewTransaction = action(
-    run: (context, input) async {
-      final response = await context.request(
-        RepositoryHttpRequest(
-          url: Uri.parse('https://example.com/transactions'),
-          method: RepositoryHttpMethod.post,
-          body: input.toJson(),
-        ),
+class TransactionsRepository
+    extends Repository<List<Transaction>, TransactionActions> {
+  TransactionsRepository({required RepositoryClient client})
+    : super(
+        client: client,
+        endpoint: Uri.parse('https://example.com/transactions'),
+        fromJson: Transaction.listFromJson,
       );
-      return Transaction.fromJson(response.body);
-    },
-    update: (current, created) => [...?current, created],
+
+  @override
+  late final TransactionActions actions = (
+    create: (input) => executeAction(
+      run: () async {
+        final response = await request(
+          RepositoryHttpRequest(
+            url: Uri.parse('https://example.com/transactions'),
+            method: RepositoryHttpMethod.post,
+            body: input.toJson(),
+          ),
+        );
+        return Transaction.fromJson(response.body);
+      },
+      update: (current, created) => [...?current, created],
+    ),
+    logout: () => executeAction<void>(
+      run: () async {
+        await request(
+          RepositoryHttpRequest(
+            url: Uri.parse('https://example.com/session'),
+            method: RepositoryHttpMethod.delete,
+          ),
+        );
+      },
+    ),
   );
 }
 
-final transactions = Repository<List<Transaction>, TransactionActions>(
-  client: client,
-  endpoint: Uri.parse('https://example.com/transactions'),
-  fromJson: Transaction.listFromJson,
-  actions: TransactionActions.new,
-);
+final transactions = TransactionsRepository(client: client);
 ```
 
-Actions without input use `RepositoryAction0<Output>`, which is useful for
-operations such as logout or refresh commands.
+The outer closures determine each action's arguments. `executeAction` has one
+shape for actions with or without input because those inputs are captured by
+the closure. Its optional `update` callback runs only after `run` succeeds.
 
 ## Flutter
 
@@ -151,7 +169,7 @@ RepositoryBuilder(
     }
 
     return ElevatedButton(
-      onPressed: () => actions.createNewTransaction(input),
+      onPressed: () => actions.create(input),
       child: const Text('Create transaction'),
     );
   },
@@ -162,9 +180,10 @@ RepositoryBuilder(
 
 - Replace `BaseRepository.storage` and `BaseRepository.logger` configuration
   with a `RepositoryClient` instance.
-- Pass `client:` and `actions:` when declaring a repository.
-- Use `Repository<Data, RepositoryActions<Data>>` for repositories without
-  custom actions.
+- Pass `client:` to repository subclasses and declare their `actions` record
+  directly in the class.
+- Use `Repository<Data, NoRepositoryActions>` with `actions: () => ()` for
+  directly instantiated repositories without custom actions.
 - The third `RepositoryBuilder` callback argument is now the typed actions
   container instead of the repository.
 - Move request-wide authentication and retry behavior from repository mixins

@@ -6,15 +6,11 @@ void main() {
   testWidgets('builder exposes typed actions and rebuilds after an action', (
     tester,
   ) async {
-    final repository = Repository<List<String>, _ItemActions>(
-      client: RepositoryClient(
+    final repository = _ItemsRepository(
+      RepositoryClient(
         httpClient: const _ItemHttpClient(),
         storage: _InMemoryCacheStorage(),
       ),
-      endpoint: Uri.parse('https://example.com/items'),
-      fromJson: (json) => [json],
-      actions: _ItemActions.new,
-      resolveOnCreate: false,
     );
     await repository.refresh();
 
@@ -44,12 +40,23 @@ void main() {
   });
 }
 
-class _ItemActions extends RepositoryActions<List<String>> {
-  _ItemActions(super.context);
+typedef _ItemActions = ({Future<String> Function() create});
 
-  late final RepositoryAction0<String> create = action0<String>(
-    run: (_) => 'Created',
-    update: (current, created) => [...?current, created],
+class _ItemsRepository extends Repository<List<String>, _ItemActions> {
+  _ItemsRepository(RepositoryClient client)
+    : super(
+        client: client,
+        endpoint: Uri.parse('https://example.com/items'),
+        fromJson: (json) => [json],
+        resolveOnCreate: false,
+      );
+
+  @override
+  late final _ItemActions actions = (
+    create: () => executeAction(
+      run: () => 'Created',
+      update: (current, created) => [...?current, created],
+    ),
   );
 }
 

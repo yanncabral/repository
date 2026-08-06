@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('Repository', () {
-    late Repository<int, RepositoryActions<int>> repository;
+    late Repository<int, NoRepositoryActions> repository;
 
     setUp(() {
       repository = _TestRepository(
@@ -58,14 +58,16 @@ class _RepositoryCacheStorageMock extends RepositoryCacheStorage {
   }
 }
 
-class _TestRepository extends Repository<int, RepositoryActions<int>> {
+class _TestRepository extends Repository<int, NoRepositoryActions> {
   _TestRepository(RepositoryClient client)
     : super(
         client: client,
-        actions: RepositoryActions.new,
         endpoint: Uri.parse('https://example.com/value'),
         resolveOnCreate: false,
       );
+
+  @override
+  final NoRepositoryActions actions = ();
 
   @override
   Future<String> resolve() async {

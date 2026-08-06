@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
+import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
 import 'package:repository/src/infra/repository_fiber.dart';
+import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/repositories/http_repository.dart';
 import 'package:repository/src/repository_action.dart';
 import 'package:repository/src/repository_client.dart';
@@ -15,8 +17,7 @@ import 'package:rxdart/rxdart.dart';
 /// though a repository.
 /// For example, you can use this mixin to save data to a remote API
 /// when a user updates a profile.
-mixin MutatorRepositoryMixin<Data, Actions extends RepositoryActions<Data>>
-    on BaseRepository<Data, Actions> {
+mixin MutatorRepositoryMixin<Data, Actions> on BaseRepository<Data, Actions> {
   /// Propagates data to a remote source and updates the stream.
   Future<void> mutate(Data data);
 }
@@ -24,14 +25,14 @@ mixin MutatorRepositoryMixin<Data, Actions extends RepositoryActions<Data>>
 /// A [BaseRepository] is a class that holds data and provides a stream.
 /// It can be used to fetch data from a remote source, cache it, and provide a
 /// stream of that data.
-abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
+abstract class BaseRepository<Data, Actions> {
   /// If [resolveOnCreate] is true, the repository will resolve itself on
   /// creation.
   /// If [autoRefreshInterval] is not null, the repository will refresh itself
   /// every [autoRefreshInterval].
   BaseRepository({
     required this.client,
-    required RepositoryActionsFactory<Data, Actions> actions,
+    RepositoryActionsFactory<Actions>? actions,
     this.autoRefreshInterval,
     bool resolveOnCreate = true,
     List<BaseRepository<dynamic, dynamic>>? dependencies,
@@ -56,7 +57,7 @@ abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
   factory BaseRepository.http({
     required RepositoryClient client,
     required Uri endpoint,
-    required RepositoryActionsFactory<Data, Actions> actions,
+    required RepositoryActionsFactory<Actions> actions,
     Data Function(String json)? fromJson,
     FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
     Duration? autoRefreshInterval,
@@ -155,17 +156,47 @@ abstract class BaseRepository<Data, Actions extends RepositoryActions<Data>> {
   /// Infrastructure shared by this repository.
   final RepositoryClient client;
 
-  final RepositoryActionsFactory<Data, Actions> _createActions;
+  final RepositoryActionsFactory<Actions>? _createActions;
 
   /// Typed operations exposed by this repository.
-  late final Actions actions = _createActions(
-    RepositoryActionContext<Data>(
-      client,
-      () => currentValue,
-      (data, datasource) => emit(data: data, datasource: datasource),
-      refresh,
-    ),
-  );
+  late final Actions _actions =
+      _createActions?.call() ??
+      (throw StateError('This repository does not define actions.'));
+
+  /// Typed operations exposed by this repository.
+  Actions get actions => _actions;
+
+  /// Executes [run] and updates repository data only after it succeeds.
+  @protected
+  Future<Output> executeAction<Output>({
+    required FutureOr<Output> Function() run,
+    FutureOr<Data> Function(Data? current, Output output)? update,
+  }) async {
+    final output = await run();
+    if (update != null) {
+      await emit(
+        data: await update(currentValue, output),
+        datasource: RepositoryDatasource.optimistic,
+      );
+    }
+    return output;
+  }
+
+  /// Executes an action request through the configured [RepositoryClient].
+  @protected
+  Future<RepositoryHttpResponse> request(
+    RepositoryHttpRequest request, {
+    RepositoryResponseCondition? successfulCondition,
+  }) async {
+    final response = await client.call(request: request);
+    final isSuccessful =
+        await successfulCondition?.call(response) ??
+        (response.statusCode >= 200 && response.statusCode < 300);
+    if (!isSuccessful) {
+      throw UnexpectedStatusCodeException(sent: request, received: response);
+    }
+    return response;
+  }
 
   /// Getter for the last value of the stream.
   /// Returns null if the stream is empty.
