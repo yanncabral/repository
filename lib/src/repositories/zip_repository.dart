@@ -14,7 +14,6 @@ import 'package:rxdart/rxdart.dart';
 /// Direct usage:
 /// ```dart
 /// final repo = ZipRepository<CombinedData>(
-///   client: client,
 ///   repositories: [repo1, repo2, repo3],
 ///   zipper: (values) => CombinedData.fromValues(values),
 /// );
@@ -24,7 +23,7 @@ import 'package:rxdart/rxdart.dart';
 /// ```dart
 /// class MyCombinedRepository extends ZipRepository<CombinedData> {
 ///   MyCombinedRepository()
-///       : super(client: client, repositories: [repo1, repo2]);
+///       : super(repositories: [repo1, repo2]);
 ///
 ///   @override
 ///   CombinedData zipper(List<dynamic> values) {
@@ -46,7 +45,7 @@ class ZipRepository<Data> extends BaseRepository<Data, NoRepositoryActions> {
     super.autoRefreshInterval,
     this._name,
     super.resolveOnCreate,
-  }) : super() {
+  }) : super(actions: (_) => ()) {
     _combinedSubscription =
         CombineLatestStream(
           repositories.map((e) => e.stream.startWith(e.currentState)),
@@ -59,9 +58,6 @@ class ZipRepository<Data> extends BaseRepository<Data, NoRepositoryActions> {
   final String? _name;
   final Data Function(List<dynamic> values)? _zipper;
   late final StreamSubscription<Data> _combinedSubscription;
-
-  @override
-  final NoRepositoryActions actions = ();
 
   /// The list of [BaseRepository]s to combine.
   /// The [zipper] function runs whenever a child repository emits a value.

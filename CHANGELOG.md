@@ -1,11 +1,12 @@
 ## [4.0.0-dev.1] - Unreleased
 
 * Add configurable, isolated `RepositoryClient` instances.
+* Add `BaseRepository.config` for a default client captured by new repository
+  instances while preserving optional per-repository overrides.
+* Add base URL resolution with typed relative and absolute repository URLs.
 * Add ordered `RepositoryInterceptor` middleware with replay support.
-* Add typed action records declared directly by repository subclasses and
-  expose their closures through `RepositoryBuilder`.
-* Replace monostate cache, logger, and HTTP configuration with explicit client
-  injection.
+* Add external typed action factories whose runs receive `RepositoryClient`,
+  return `Either`, and update repository state only on `Right`.
 * Merge the Flutter integration into the main `repository` package.
 * Add repository dependencies, nullable resolution, hydration coordination,
   and exception-safe fibers.

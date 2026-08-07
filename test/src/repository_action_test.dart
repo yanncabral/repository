@@ -59,6 +59,25 @@ void main() {
     repository.dispose();
   });
 
+  test('unexpected action exception does not update repository data', () async {
+    final repository = Repository<List<String>, _ThrowingActions>(
+      client: RepositoryClient(
+        httpClient: _ActionHttpClient(),
+        storage: _InMemoryCacheStorage(),
+      ),
+      endpoint: const .absolute('https://example.com/transactions'),
+      fromJson: (json) => [json],
+      actions: _throwingActions,
+      resolveOnCreate: false,
+    );
+    await repository.refresh();
+
+    await expectLater(repository.actions.fail(), throwsStateError);
+
+    expect(repository.currentValue, ['Existing']);
+    repository.dispose();
+  });
+
   test('HTTP failure returned as Left does not update data', () async {
     final repository = _transactionsRepository(
       RepositoryClient(
@@ -210,6 +229,21 @@ _ConflictActions _conflictActions(
         return Right(response.body);
       },
       update: (current, conflict) => [...?current, conflict],
+    ),
+  );
+}
+
+typedef _ThrowingActions = ({
+  Future<Either<String, String>> Function() fail,
+});
+
+_ThrowingActions _throwingActions(
+  RepositoryActionExecutor<List<String>> execute,
+) {
+  return (
+    fail: () => execute(
+      run: (_) => throw StateError('failed'),
+      update: (current, output) => [...?current, output],
     ),
   );
 }

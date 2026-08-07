@@ -62,12 +62,10 @@ class _TestRepository extends Repository<int, NoRepositoryActions> {
   _TestRepository(RepositoryClient client)
     : super(
         client: client,
+        actions: (_) => (),
         endpoint: const .absolute('https://example.com/value'),
         resolveOnCreate: false,
       );
-
-  @override
-  final NoRepositoryActions actions = ();
 
   @override
   Future<String> resolve() async {

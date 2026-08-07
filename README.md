@@ -33,14 +33,13 @@ Install it:
 flutter pub get
 ```
 
-## Configure a client
+## Configure repositories
 
-`RepositoryClient` owns the infrastructure shared by a group of repositories.
-Create separate clients when repositories must not share transport, cache,
-logging, or interceptors.
+Configure the default client once before creating repositories:
 
 ```dart
-final client = RepositoryClient(
+BaseRepository.config(
+  baseUrl: Uri.parse('https://api.example.com/v1/'),
   httpClient: createPlatformHttpClient(),
   storage: await HiveRepositoryCacheStorage.create(),
   interceptors: [
@@ -49,19 +48,44 @@ final client = RepositoryClient(
 );
 ```
 
-Every repository receives its client explicitly:
+Each repository captures the configured client when it is created. A later
+configuration does not change existing repositories. `client:` remains an
+optional per-repository override for tests or different infrastructure.
+
+A read-only repository needs only an endpoint, decoder, and empty actions
+factory:
 
 ```dart
 final repository = Repository<int, NoRepositoryActions>(
-  client: client,
-  endpoint: Uri.parse('https://example.com/count'),
+  endpoint: .relative('count'),
   fromJson: int.parse,
-  actions: () => (),
+  actions: (_) => (),
 );
 ```
 
-`NoRepositoryActions` is the empty record used by directly instantiated,
-read-only repositories. Repository subclasses can override `actions` instead.
+`NoRepositoryActions` is the empty record used by read-only repositories.
+
+## Request URLs
+
+Relative URLs are resolved against `RepositoryClient.baseUrl` before any
+interceptor runs:
+
+```dart
+RepositoryHttpRequest(
+  url: .relative('transactions/42'),
+);
+```
+
+An absolute URL ignores the configured base URL:
+
+```dart
+RepositoryHttpRequest(
+  url: .absolute('https://external.example.com/transactions/42'),
+);
+```
+
+Resolution follows `Uri.resolve`: a leading slash starts at the host root,
+while a path without one is relative to the base URL path.
 
 ## Interceptors
 
@@ -97,64 +121,54 @@ authentication consistent for repository refreshes and custom actions.
 
 ## Actions
 
-Actions are ordinary typed Dart functions grouped in a named record and
-declared directly by a repository subclass. An action may make zero, one, or
-several requests and can update the repository only after it succeeds.
-
-The protected `request` method accepts `2xx` responses by default and throws
-`UnexpectedStatusCodeException` otherwise, so a failed request does not run
-the action's state update. Actions that intentionally handle other statuses
-can provide `successfulCondition`.
+Actions are typed Dart functions grouped in a named record. Their factory is
+defined outside the repository and receives a `RepositoryActionExecutor`.
+Each `run` receives the repository's captured `RepositoryClient` and returns
+`Either<Failure, Output>` from `dartz`.
 
 ```dart
 typedef TransactionActions = ({
-  Future<Transaction> Function(CreateTransaction input) create,
-  Future<void> Function() logout,
+  Future<Either<CreateFailure, Transaction>> Function(
+    CreateTransaction input,
+  ) create,
 });
 
-class TransactionsRepository
-    extends Repository<List<Transaction>, TransactionActions> {
-  TransactionsRepository({required RepositoryClient client})
-    : super(
-        client: client,
-        endpoint: Uri.parse('https://example.com/transactions'),
-        fromJson: Transaction.listFromJson,
-      );
-
-  @override
-  late final TransactionActions actions = (
-    create: (input) => executeAction(
-      run: () async {
-        final response = await request(
-          RepositoryHttpRequest(
-            url: Uri.parse('https://example.com/transactions'),
+TransactionActions transactionActions(
+  RepositoryActionExecutor<List<Transaction>> execute,
+) {
+  return (
+    create: (input) => execute(
+      run: (client) async {
+        final response = await client.call(
+          request: RepositoryHttpRequest(
+            url: .relative('transactions'),
             method: RepositoryHttpMethod.post,
             body: input.toJson(),
           ),
         );
-        return Transaction.fromJson(response.body);
+
+        if (response.statusCode != 201) {
+          return Left(CreateFailure.fromResponse(response));
+        }
+
+        return Right(Transaction.fromJson(response.body));
       },
       update: (current, created) => [...?current, created],
-    ),
-    logout: () => executeAction<void>(
-      run: () async {
-        await request(
-          RepositoryHttpRequest(
-            url: Uri.parse('https://example.com/session'),
-            method: RepositoryHttpMethod.delete,
-          ),
-        );
-      },
     ),
   );
 }
 
-final transactions = TransactionsRepository(client: client);
+final transactions = Repository<List<Transaction>, TransactionActions>(
+  endpoint: .relative('transactions'),
+  fromJson: Transaction.listFromJson,
+  actions: transactionActions,
+);
 ```
 
-The outer closures determine each action's arguments. `executeAction` has one
-shape for actions with or without input because those inputs are captured by
-the closure. Its optional `update` callback runs only after `run` succeeds.
+`Left` is returned without changing repository data. On `Right`, the optional
+`update` callback receives the current data and successful output, emits the
+new optimistic state, and the same `Right` is returned to the caller.
+Unexpected exceptions propagate and also skip `update`.
 
 ## Flutter
 
@@ -169,7 +183,10 @@ RepositoryBuilder(
     }
 
     return ElevatedButton(
-      onPressed: () => actions.create(input),
+      onPressed: () async {
+        final result = await actions.create(input);
+        result.fold(showCreateError, showCreatedTransaction);
+      },
       child: const Text('Create transaction'),
     );
   },
@@ -178,12 +195,14 @@ RepositoryBuilder(
 
 ## Migration from the monostate API
 
-- Replace `BaseRepository.storage` and `BaseRepository.logger` configuration
-  with a `RepositoryClient` instance.
-- Pass `client:` to repository subclasses and declare their `actions` record
-  directly in the class.
-- Use `Repository<Data, NoRepositoryActions>` with `actions: () => ()` for
-  directly instantiated repositories without custom actions.
+- Call `BaseRepository.config(...)` once before creating repositories.
+- Remove repeated `client:` arguments; retain them only for explicit overrides.
+- Replace `Uri` request values with `.relative(...)` or `.absolute(...)`.
+- Move action records into external factories that receive
+  `RepositoryActionExecutor<Data>`.
+- Return `Either<Failure, Output>` from every action `run`.
+- Use `Repository<Data, NoRepositoryActions>` with `actions: (_) => ()` for
+  repositories without custom actions.
 - The third `RepositoryBuilder` callback argument is now the typed actions
   container instead of the repository.
 - Move request-wide authentication and retry behavior from repository mixins

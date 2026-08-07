@@ -17,8 +17,7 @@ import 'package:repository/src/repository_url.dart';
 /// Direct usage:
 /// ```dart
 /// final repo = Repository<MyData, NoRepositoryActions>(
-///   client: client,
-///   endpoint: Uri.parse('https://api.example.com/data'),
+///   endpoint: .relative('data'),
 ///   fromJson: (json) => MyData.fromJson(json),
 ///   actions: (_) => (),
 /// );
@@ -30,12 +29,9 @@ import 'package:repository/src/repository_url.dart';
 ///     extends Repository<MyData, NoRepositoryActions> {
 ///   MyRepository()
 ///       : super(
-///           client: client,
-///           endpoint: Uri.parse('https://api.example.com/data'),
+///           endpoint: .relative('data'),
+///           actions: (_) => (),
 ///         );
-///
-///   @override
-///   final NoRepositoryActions actions = ();
 ///
 ///   @override
 ///   MyData fromJson(String json) => MyData.fromJson(json);
