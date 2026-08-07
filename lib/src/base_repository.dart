@@ -4,11 +4,14 @@ import 'package:meta/meta.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
 import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
+import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_fiber.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
+import 'package:repository/src/infra/repository_logger.dart';
 import 'package:repository/src/repositories/http_repository.dart';
 import 'package:repository/src/repository_action.dart';
 import 'package:repository/src/repository_client.dart';
+import 'package:repository/src/repository_interceptor.dart';
 import 'package:retry/retry.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -31,12 +34,13 @@ abstract class BaseRepository<Data, Actions> {
   /// If [autoRefreshInterval] is not null, the repository will refresh itself
   /// every [autoRefreshInterval].
   BaseRepository({
-    required this.client,
+    RepositoryClient? client,
     RepositoryActionsFactory<Actions>? actions,
     this.autoRefreshInterval,
     bool resolveOnCreate = true,
     List<BaseRepository<dynamic, dynamic>>? dependencies,
-  }) : _createActions = actions,
+  }) : client = client ?? _configuredClient(),
+       _createActions = actions,
        dependencies = dependencies ?? <BaseRepository<dynamic, dynamic>>[] {
     track();
 
@@ -55,9 +59,9 @@ abstract class BaseRepository<Data, Actions> {
 
   /// {@macro http_repository}
   factory BaseRepository.http({
-    required RepositoryClient client,
     required Uri endpoint,
     required RepositoryActionsFactory<Actions> actions,
+    RepositoryClient? client,
     Data Function(String json)? fromJson,
     FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
     Duration? autoRefreshInterval,
@@ -76,6 +80,30 @@ abstract class BaseRepository<Data, Actions> {
       autoRefreshInterval: autoRefreshInterval,
       resolveOnCreate: resolveOnCreate,
     );
+  }
+
+  static RepositoryClient? _client;
+
+  /// Configures the client used by repositories created without an override.
+  static void config({
+    required RepositoryHttpClient httpClient,
+    required RepositoryCacheStorage storage,
+    RepositoryLogger logger = const RepositoryLogger.dev(),
+    List<RepositoryInterceptor> interceptors = const [],
+  }) {
+    _client = RepositoryClient(
+      httpClient: httpClient,
+      storage: storage,
+      logger: logger,
+      interceptors: interceptors,
+    );
+  }
+
+  static RepositoryClient _configuredClient() {
+    return _client ??
+        (throw StateError(
+          'BaseRepository.config must be called before creating a repository.',
+        ));
   }
 
   /// Adds a repository that triggers a refresh when it emits ready data.

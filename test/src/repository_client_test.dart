@@ -2,6 +2,51 @@ import 'package:repository/repository.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('repository uses the globally configured client by default', () async {
+    final transport = _FakeHttpClient('42');
+    final storage = _InMemoryCacheStorage();
+    BaseRepository.config(httpClient: transport, storage: storage);
+    final repository = Repository<int, NoRepositoryActions>(
+      endpoint: Uri.parse('https://example.com/value'),
+      fromJson: int.parse,
+      actions: () => (),
+      resolveOnCreate: false,
+    );
+
+    await repository.refresh();
+
+    expect(repository.currentValue, 42);
+    expect(transport.requests, hasLength(1));
+    expect(await storage.read(key: repository.key), '42');
+    repository.dispose();
+  });
+
+  test('repository captures the configured client when created', () async {
+    final firstTransport = _FakeHttpClient('1');
+    BaseRepository.config(
+      httpClient: firstTransport,
+      storage: _InMemoryCacheStorage(),
+    );
+    final repository = Repository<int, NoRepositoryActions>(
+      endpoint: Uri.parse('https://example.com/value'),
+      fromJson: int.parse,
+      actions: () => (),
+      resolveOnCreate: false,
+    );
+
+    final secondTransport = _FakeHttpClient('2');
+    BaseRepository.config(
+      httpClient: secondTransport,
+      storage: _InMemoryCacheStorage(),
+    );
+    await repository.refresh();
+
+    expect(repository.currentValue, 1);
+    expect(firstTransport.requests, hasLength(1));
+    expect(secondTransport.requests, isEmpty);
+    repository.dispose();
+  });
+
   test(
     'repository uses the transport and cache configured by its client',
     () async {

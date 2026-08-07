@@ -40,8 +40,8 @@ class ZipRepository<Data> extends BaseRepository<Data, NoRepositoryActions> {
   /// The [zipper] function can be overridden when using inheritance. It takes
   /// data from each repository and returns one combined value.
   ZipRepository({
-    required super.client,
     required this.repositories,
+    super.client,
     this._zipper,
     super.autoRefreshInterval,
     this._name,

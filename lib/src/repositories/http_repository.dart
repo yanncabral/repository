@@ -53,8 +53,8 @@ class Repository<Data, Actions> extends BaseRepository<Data, Actions>
   /// If [autoRefreshInterval] is not null, the repository will automatically
   /// refresh at the specified interval.
   Repository({
-    required super.client,
     required this.endpoint,
+    super.client,
     super.actions,
     this._fromJson,
     this._shouldRetryCondition,
