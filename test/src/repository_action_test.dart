@@ -1,31 +1,11 @@
+import 'package:dartz/dartz.dart';
 import 'package:repository/repository.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test(
-    'repository action can execute a request and update repository data',
-    () async {
-      final transport = _ActionHttpClient();
-      final repository = _TransactionsRepository(
-        RepositoryClient(
-          httpClient: transport,
-          storage: _InMemoryCacheStorage(),
-        ),
-      );
-      await repository.refresh();
-
-      final created = await repository.actions.create('New');
-
-      expect(created, 'New');
-      expect(repository.currentValue, ['Existing', 'New']);
-      expect(transport.requests.last.method, RepositoryHttpMethod.post);
-      repository.dispose();
-    },
-  );
-
-  test('repository action without input can update nullable data', () async {
+  test('successful action updates repository data', () async {
     final transport = _ActionHttpClient();
-    final repository = _SessionRepository(
+    final repository = _transactionsRepository(
       RepositoryClient(
         httpClient: transport,
         storage: _InMemoryCacheStorage(),
@@ -33,171 +13,201 @@ void main() {
     );
     await repository.refresh();
 
-    await repository.actions.logout();
+    final result = await repository.actions.create('New');
 
-    expect(repository.currentValue, isNull);
-    expect(transport.requests.last.method, RepositoryHttpMethod.delete);
+    expect(result, const Right<String, String>('New'));
+    expect(repository.currentValue, ['Existing', 'New']);
+    expect(transport.requests.last.method, RepositoryHttpMethod.post);
     repository.dispose();
   });
 
-  test('repository action does not update data when execution fails', () async {
-    final repository = _FailingRepository(
+  test('action without input can update nullable data', () async {
+    final transport = _ActionHttpClient();
+    final repository = _sessionRepository(
       RepositoryClient(
-        httpClient: _ActionHttpClient(),
+        httpClient: transport,
         storage: _InMemoryCacheStorage(),
       ),
     );
     await repository.refresh();
 
-    await expectLater(repository.actions.fail(), throwsStateError);
+    final result = await repository.actions.logout();
 
+    expect(result.isRight(), isTrue);
+    expect(repository.currentValue, isNull);
+    expect(transport.requests.last.method, RepositoryHttpMethod.delete);
+    repository.dispose();
+  });
+
+  test('Left action result does not update repository data', () async {
+    final repository = Repository<List<String>, _FailingActions>(
+      client: RepositoryClient(
+        httpClient: _ActionHttpClient(),
+        storage: _InMemoryCacheStorage(),
+      ),
+      endpoint: const .absolute('https://example.com/transactions'),
+      fromJson: (json) => [json],
+      actions: _failingActions,
+      resolveOnCreate: false,
+    );
+    await repository.refresh();
+
+    final result = await repository.actions.fail();
+
+    expect(result, const Left<String, String>('failed'));
     expect(repository.currentValue, ['Existing']);
     repository.dispose();
   });
 
-  test(
-    'repository action does not update data after an HTTP failure',
-    () async {
-      final repository = _TransactionsRepository(
-        RepositoryClient(
-          httpClient: _FailingActionHttpClient(),
-          storage: _InMemoryCacheStorage(),
-        ),
-      );
-      await repository.refresh();
+  test('HTTP failure returned as Left does not update data', () async {
+    final repository = _transactionsRepository(
+      RepositoryClient(
+        httpClient: _FailingActionHttpClient(),
+        storage: _InMemoryCacheStorage(),
+      ),
+    );
+    await repository.refresh();
 
-      await expectLater(
-        repository.actions.create('Rejected'),
-        throwsA(isA<UnexpectedStatusCodeException>()),
-      );
+    final result = await repository.actions.create('Rejected');
 
-      expect(repository.currentValue, ['Existing']);
-      repository.dispose();
-    },
-  );
+    expect(result, const Left<String, String>('HTTP 500'));
+    expect(repository.currentValue, ['Existing']);
+    repository.dispose();
+  });
 
-  test(
-    'repository action can accept an intentional non-2xx response',
-    () async {
-      final repository = _ConflictRepository(
-        RepositoryClient(
-          httpClient: _ConflictHttpClient(),
-          storage: _InMemoryCacheStorage(),
-        ),
-      );
-      await repository.refresh();
+  test('action can return Right for an intentional non-2xx response', () async {
+    final repository = Repository<List<String>, _ConflictActions>(
+      client: RepositoryClient(
+        httpClient: _ConflictHttpClient(),
+        storage: _InMemoryCacheStorage(),
+      ),
+      endpoint: const .absolute('https://example.com/items'),
+      fromJson: (json) => [json],
+      actions: _conflictActions,
+      resolveOnCreate: false,
+    );
+    await repository.refresh();
 
-      final conflict = await repository.actions.acceptConflict();
+    final result = await repository.actions.acceptConflict();
 
-      expect(conflict, 'Conflict');
-      expect(repository.currentValue, ['Existing', 'Conflict']);
-      repository.dispose();
-    },
-  );
+    expect(result, const Right<String, String>('Conflict'));
+    expect(repository.currentValue, ['Existing', 'Conflict']);
+    repository.dispose();
+  });
 }
 
 typedef _TransactionsActions = ({
-  Future<String> Function(String title) create,
+  Future<Either<String, String>> Function(String title) create,
 });
 
-class _TransactionsRepository
-    extends Repository<List<String>, _TransactionsActions> {
-  _TransactionsRepository(RepositoryClient client)
-    : super(
-        client: client,
-        endpoint: const .absolute('https://example.com/transactions'),
-        fromJson: (json) => [json],
-        resolveOnCreate: false,
-      );
+Repository<List<String>, _TransactionsActions> _transactionsRepository(
+  RepositoryClient client,
+) {
+  return Repository(
+    client: client,
+    endpoint: const .absolute('https://example.com/transactions'),
+    fromJson: (json) => [json],
+    actions: _transactionsActions,
+    resolveOnCreate: false,
+  );
+}
 
-  @override
-  late final _TransactionsActions actions = (
-    create: (title) => executeAction(
-      run: () async {
-        final response = await request(
-          RepositoryHttpRequest(
+_TransactionsActions _transactionsActions(
+  RepositoryActionExecutor<List<String>> execute,
+) {
+  return (
+    create: (title) => execute(
+      run: (client) async {
+        final response = await client.call(
+          request: RepositoryHttpRequest(
             url: const .absolute('https://example.com/transactions'),
             method: RepositoryHttpMethod.post,
             body: {'title': title},
           ),
         );
-        return response.body;
+        if (response.statusCode != 200) {
+          return Left('HTTP ${response.statusCode}');
+        }
+        return Right(response.body);
       },
       update: (current, created) => [...?current, created],
     ),
   );
 }
 
-typedef _SessionActions = ({Future<void> Function() logout});
+typedef _SessionActions = ({
+  Future<Either<String, Unit>> Function() logout,
+});
 
-class _SessionRepository extends Repository<String?, _SessionActions> {
-  _SessionRepository(RepositoryClient client)
-    : super(
-        client: client,
-        endpoint: const .absolute('https://example.com/session'),
-        fromJson: (json) => json,
-        resolveOnCreate: false,
-      );
+Repository<String?, _SessionActions> _sessionRepository(
+  RepositoryClient client,
+) {
+  return Repository(
+    client: client,
+    endpoint: const .absolute('https://example.com/session'),
+    fromJson: (json) => json,
+    actions: _sessionActions,
+    resolveOnCreate: false,
+  );
+}
 
-  @override
-  late final _SessionActions actions = (
-    logout: () => executeAction<void>(
-      run: () async {
-        await request(
-          const RepositoryHttpRequest(
+_SessionActions _sessionActions(
+  RepositoryActionExecutor<String?> execute,
+) {
+  return (
+    logout: () => execute(
+      run: (client) async {
+        final response = await client.call(
+          request: const RepositoryHttpRequest(
             url: .absolute('https://example.com/session'),
             method: RepositoryHttpMethod.delete,
           ),
         );
+        if (response.statusCode != 200) {
+          return Left('HTTP ${response.statusCode}');
+        }
+        return const Right(unit);
       },
       update: (_, _) => null,
     ),
   );
 }
 
-typedef _FailingActions = ({Future<String> Function() fail});
+typedef _FailingActions = ({
+  Future<Either<String, String>> Function() fail,
+});
 
-class _FailingRepository extends Repository<List<String>, _FailingActions> {
-  _FailingRepository(RepositoryClient client)
-    : super(
-        client: client,
-        endpoint: const .absolute('https://example.com/transactions'),
-        fromJson: (json) => [json],
-        resolveOnCreate: false,
-      );
-
-  @override
-  late final _FailingActions actions = (
-    fail: () => executeAction(
-      run: () => throw StateError('failed'),
+_FailingActions _failingActions(
+  RepositoryActionExecutor<List<String>> execute,
+) {
+  return (
+    fail: () => execute(
+      run: (_) => const Left('failed'),
       update: (current, output) => [...?current, output],
     ),
   );
 }
 
-typedef _ConflictActions = ({Future<String> Function() acceptConflict});
+typedef _ConflictActions = ({
+  Future<Either<String, String>> Function() acceptConflict,
+});
 
-class _ConflictRepository extends Repository<List<String>, _ConflictActions> {
-  _ConflictRepository(RepositoryClient client)
-    : super(
-        client: client,
-        endpoint: const .absolute('https://example.com/items'),
-        fromJson: (json) => [json],
-        resolveOnCreate: false,
-      );
-
-  @override
-  late final _ConflictActions actions = (
-    acceptConflict: () => executeAction(
-      run: () async {
-        final response = await request(
-          const RepositoryHttpRequest(
+_ConflictActions _conflictActions(
+  RepositoryActionExecutor<List<String>> execute,
+) {
+  return (
+    acceptConflict: () => execute(
+      run: (client) async {
+        final response = await client.call(
+          request: const RepositoryHttpRequest(
             url: .absolute('https://example.com/items'),
             method: RepositoryHttpMethod.post,
           ),
-          successfulCondition: (response) => response.statusCode == 409,
         );
-        return response.body;
+        if (response.statusCode != 409) {
+          return Left('HTTP ${response.statusCode}');
+        }
+        return Right(response.body);
       },
       update: (current, conflict) => [...?current, conflict],
     ),

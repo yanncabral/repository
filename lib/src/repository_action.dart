@@ -1,13 +1,22 @@
 import 'dart:async';
 
-import 'package:repository/src/infra/repository_http_client.dart';
+import 'package:dartz/dartz.dart';
+import 'package:repository/src/repository_client.dart';
 
 /// The actions type used by repositories without custom operations.
 typedef NoRepositoryActions = ();
 
-/// Creates the typed actions exposed by a directly instantiated repository.
-typedef RepositoryActionsFactory<Actions> = Actions Function();
+/// Runs an action using the repository's configured client.
+typedef RepositoryActionRun<Failure, Output> =
+    FutureOr<Either<Failure, Output>> Function(RepositoryClient client);
 
-/// Decides whether an action request response is successful.
-typedef RepositoryResponseCondition =
-    FutureOr<bool> Function(RepositoryHttpResponse response);
+/// Executes an action and applies its successful output to repository data.
+typedef RepositoryActionExecutor<Data> =
+    Future<Either<Failure, Output>> Function<Failure, Output>({
+      required RepositoryActionRun<Failure, Output> run,
+      FutureOr<Data> Function(Data? current, Output output)? update,
+    });
+
+/// Creates the typed actions exposed by a repository.
+typedef RepositoryActionsFactory<Data, Actions> =
+    Actions Function(RepositoryActionExecutor<Data> execute);

@@ -13,7 +13,7 @@ void main() {
     final repository = Repository<int, NoRepositoryActions>(
       endpoint: const .relative('/value'),
       fromJson: int.parse,
-      actions: () => (),
+      actions: (_) => (),
       resolveOnCreate: false,
     );
 
@@ -35,7 +35,7 @@ void main() {
     final repository = Repository<int, NoRepositoryActions>(
       endpoint: const .relative('/value'),
       fromJson: int.parse,
-      actions: () => (),
+      actions: (_) => (),
       resolveOnCreate: false,
     );
 
@@ -64,7 +64,7 @@ void main() {
       );
       final repository = Repository<int, NoRepositoryActions>(
         client: client,
-        actions: () => (),
+        actions: (_) => (),
         endpoint: const .absolute('https://example.com/value'),
         fromJson: int.parse,
         resolveOnCreate: false,
@@ -91,7 +91,7 @@ void main() {
         httpClient: _FakeHttpClient('1'),
         storage: firstStorage,
       ),
-      actions: () => (),
+      actions: (_) => (),
       endpoint: const .absolute('https://example.com/value'),
       fromJson: int.parse,
       resolveOnCreate: false,
@@ -101,7 +101,7 @@ void main() {
         httpClient: _FakeHttpClient('2'),
         storage: secondStorage,
       ),
-      actions: () => (),
+      actions: (_) => (),
       endpoint: const .absolute('https://example.com/value'),
       fromJson: int.parse,
       resolveOnCreate: false,

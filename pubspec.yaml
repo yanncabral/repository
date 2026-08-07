@@ -16,6 +16,7 @@ dev_dependencies:
 dependencies:
   crypto: ^3.0.6
   cupertino_http: ">=2.3.0 <2.4.0"
+  dartz: ^0.10.1
   equatable: ^2.0.7
   flutter:
     sdk: flutter

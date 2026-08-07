@@ -1,9 +1,9 @@
 import 'dart:async';
 
+import 'package:dartz/dartz.dart';
 import 'package:meta/meta.dart';
 import 'package:repository/src/domain/entities/data_source.dart';
 import 'package:repository/src/domain/entities/repository_state.dart';
-import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
 import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_fiber.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
@@ -36,7 +36,7 @@ abstract class BaseRepository<Data, Actions> {
   /// every [autoRefreshInterval].
   BaseRepository({
     RepositoryClient? client,
-    RepositoryActionsFactory<Actions>? actions,
+    RepositoryActionsFactory<Data, Actions>? actions,
     this.autoRefreshInterval,
     bool resolveOnCreate = true,
     List<BaseRepository<dynamic, dynamic>>? dependencies,
@@ -61,7 +61,7 @@ abstract class BaseRepository<Data, Actions> {
   /// {@macro http_repository}
   factory BaseRepository.http({
     required RepositoryUrl endpoint,
-    required RepositoryActionsFactory<Actions> actions,
+    required RepositoryActionsFactory<Data, Actions> actions,
     RepositoryClient? client,
     Data Function(String json)? fromJson,
     FutureOr<bool> Function(Exception exception)? shouldRetryCondition,
@@ -187,46 +187,33 @@ abstract class BaseRepository<Data, Actions> {
   /// Infrastructure shared by this repository.
   final RepositoryClient client;
 
-  final RepositoryActionsFactory<Actions>? _createActions;
+  final RepositoryActionsFactory<Data, Actions>? _createActions;
 
   /// Typed operations exposed by this repository.
   late final Actions _actions =
-      _createActions?.call() ??
+      _createActions?.call(_executeAction) ??
       (throw StateError('This repository does not define actions.'));
 
   /// Typed operations exposed by this repository.
   Actions get actions => _actions;
 
-  /// Executes [run] and updates repository data only after it succeeds.
-  @protected
-  Future<Output> executeAction<Output>({
-    required FutureOr<Output> Function() run,
+  Future<Either<Failure, Output>> _executeAction<Failure, Output>({
+    required RepositoryActionRun<Failure, Output> run,
     FutureOr<Data> Function(Data? current, Output output)? update,
   }) async {
-    final output = await run();
-    if (update != null) {
-      await emit(
-        data: await update(currentValue, output),
-        datasource: RepositoryDatasource.optimistic,
-      );
-    }
-    return output;
-  }
-
-  /// Executes an action request through the configured [RepositoryClient].
-  @protected
-  Future<RepositoryHttpResponse> request(
-    RepositoryHttpRequest request, {
-    RepositoryResponseCondition? successfulCondition,
-  }) async {
-    final response = await client.call(request: request);
-    final isSuccessful =
-        await successfulCondition?.call(response) ??
-        (response.statusCode >= 200 && response.statusCode < 300);
-    if (!isSuccessful) {
-      throw UnexpectedStatusCodeException(sent: request, received: response);
-    }
-    return response;
+    final result = await run(client);
+    await result.fold<Future<void>>(
+      (_) async {},
+      (output) async {
+        if (update != null) {
+          await emit(
+            data: await update(currentValue, output),
+            datasource: RepositoryDatasource.optimistic,
+          );
+        }
+      },
+    );
+    return result;
   }
 
   /// Getter for the last value of the stream.

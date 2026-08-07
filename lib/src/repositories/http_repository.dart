@@ -20,7 +20,7 @@ import 'package:repository/src/repository_url.dart';
 ///   client: client,
 ///   endpoint: Uri.parse('https://api.example.com/data'),
 ///   fromJson: (json) => MyData.fromJson(json),
-///   actions: () => (),
+///   actions: (_) => (),
 /// );
 /// ```
 ///
