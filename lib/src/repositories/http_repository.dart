@@ -6,6 +6,7 @@ import 'package:repository/src/domain/exceptions/network_unavailable_exception.d
 import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
+import 'package:repository/src/repository_url.dart';
 
 /// {@template http_repository}
 /// A `Repository` that fetches data from an HTTP endpoint.
@@ -76,7 +77,7 @@ class Repository<Data, Actions> extends BaseRepository<Data, Actions>
 
   /// The endpoint to fetch data from.
   /// This is the only required parameter.
-  final Uri endpoint;
+  final RepositoryUrl endpoint;
 
   /// The tag of the repository.
   /// This is used to identify the repository in the cache.
@@ -88,7 +89,7 @@ class Repository<Data, Actions> extends BaseRepository<Data, Actions>
   final String? tag;
 
   @override
-  String get name => _name ?? endpoint.path.split('/').last;
+  String get name => _name ?? Uri.parse(endpoint.value).path.split('/').last;
 
   /// This function is called on resolve to
   /// get the data from the endpoint or cache.

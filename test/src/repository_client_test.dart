@@ -5,9 +5,13 @@ void main() {
   test('repository uses the globally configured client by default', () async {
     final transport = _FakeHttpClient('42');
     final storage = _InMemoryCacheStorage();
-    BaseRepository.config(httpClient: transport, storage: storage);
+    BaseRepository.config(
+      baseUrl: Uri.parse('https://example.com'),
+      httpClient: transport,
+      storage: storage,
+    );
     final repository = Repository<int, NoRepositoryActions>(
-      endpoint: Uri.parse('https://example.com/value'),
+      endpoint: const .relative('/value'),
       fromJson: int.parse,
       actions: () => (),
       resolveOnCreate: false,
@@ -24,11 +28,12 @@ void main() {
   test('repository captures the configured client when created', () async {
     final firstTransport = _FakeHttpClient('1');
     BaseRepository.config(
+      baseUrl: Uri.parse('https://example.com'),
       httpClient: firstTransport,
       storage: _InMemoryCacheStorage(),
     );
     final repository = Repository<int, NoRepositoryActions>(
-      endpoint: Uri.parse('https://example.com/value'),
+      endpoint: const .relative('/value'),
       fromJson: int.parse,
       actions: () => (),
       resolveOnCreate: false,
@@ -36,6 +41,7 @@ void main() {
 
     final secondTransport = _FakeHttpClient('2');
     BaseRepository.config(
+      baseUrl: Uri.parse('https://example.com'),
       httpClient: secondTransport,
       storage: _InMemoryCacheStorage(),
     );
@@ -59,7 +65,7 @@ void main() {
       final repository = Repository<int, NoRepositoryActions>(
         client: client,
         actions: () => (),
-        endpoint: Uri.parse('https://example.com/value'),
+        endpoint: const .absolute('https://example.com/value'),
         fromJson: int.parse,
         resolveOnCreate: false,
       );
@@ -86,7 +92,7 @@ void main() {
         storage: firstStorage,
       ),
       actions: () => (),
-      endpoint: Uri.parse('https://example.com/value'),
+      endpoint: const .absolute('https://example.com/value'),
       fromJson: int.parse,
       resolveOnCreate: false,
     );
@@ -96,7 +102,7 @@ void main() {
         storage: secondStorage,
       ),
       actions: () => (),
-      endpoint: Uri.parse('https://example.com/value'),
+      endpoint: const .absolute('https://example.com/value'),
       fromJson: int.parse,
       resolveOnCreate: false,
     );
@@ -121,13 +127,54 @@ void main() {
     );
 
     final response = await client.call(
-      request: RepositoryHttpRequest(
-        url: Uri.parse('https://example.com/value'),
+      request: const RepositoryHttpRequest(
+        url: .absolute('https://example.com/value'),
       ),
     );
 
     expect(transport.requests.single.headers, {'X-Repository': 'configured'});
     expect(response.body, 'intercepted transport');
+  });
+
+  test('client resolves relative URLs before running interceptors', () async {
+    final transport = _FakeHttpClient('transport');
+    final interceptor = _RecordingInterceptor();
+    final client = RepositoryClient(
+      baseUrl: Uri.parse('https://api.example.com/v1/'),
+      httpClient: transport,
+      storage: _InMemoryCacheStorage(),
+      interceptors: [interceptor],
+    );
+
+    await client.call(
+      request: const RepositoryHttpRequest(
+        url: .relative('transactions'),
+      ),
+    );
+
+    final expected = Uri.parse('https://api.example.com/v1/transactions');
+    expect(interceptor.requests.single.resolvedUrl, expected);
+    expect(transport.requests.single.resolvedUrl, expected);
+  });
+
+  test('absolute URLs ignore the configured base URL', () async {
+    final transport = _FakeHttpClient('transport');
+    final client = RepositoryClient(
+      baseUrl: Uri.parse('https://api.example.com/v1/'),
+      httpClient: transport,
+      storage: _InMemoryCacheStorage(),
+    );
+
+    await client.call(
+      request: const RepositoryHttpRequest(
+        url: .absolute('https://external.example.com/transactions/1'),
+      ),
+    );
+
+    expect(
+      transport.requests.single.resolvedUrl,
+      Uri.parse('https://external.example.com/transactions/1'),
+    );
   });
 
   test('interceptor can replay a request after handling a response', () async {
@@ -139,8 +186,8 @@ void main() {
     );
 
     final response = await client.call(
-      request: RepositoryHttpRequest(
-        url: Uri.parse('https://example.com/private'),
+      request: const RepositoryHttpRequest(
+        url: .absolute('https://example.com/private'),
       ),
     );
 
@@ -160,8 +207,8 @@ void main() {
     );
 
     await client.call(
-      request: RepositoryHttpRequest(
-        url: Uri.parse('https://example.com/value'),
+      request: const RepositoryHttpRequest(
+        url: .absolute('https://example.com/value'),
       ),
     );
 
@@ -231,6 +278,19 @@ class _TransformingInterceptor implements RepositoryInterceptor {
       headers: response.headers,
       body: 'intercepted ${response.body}',
     );
+  }
+}
+
+class _RecordingInterceptor implements RepositoryInterceptor {
+  final requests = <RepositoryHttpRequest>[];
+
+  @override
+  Future<RepositoryHttpResponse> intercept({
+    required RepositoryHttpRequest request,
+    required RepositoryRequestHandler next,
+  }) {
+    requests.add(request);
+    return next(request);
   }
 }
 

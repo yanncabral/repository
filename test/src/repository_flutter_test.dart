@@ -46,7 +46,7 @@ class _ItemsRepository extends Repository<List<String>, _ItemActions> {
   _ItemsRepository(RepositoryClient client)
     : super(
         client: client,
-        endpoint: Uri.parse('https://example.com/items'),
+        endpoint: const .absolute('https://example.com/items'),
         fromJson: (json) => [json],
         resolveOnCreate: false,
       );

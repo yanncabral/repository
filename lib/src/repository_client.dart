@@ -9,9 +9,13 @@ class RepositoryClient {
   const RepositoryClient({
     required this.httpClient,
     required this.storage,
+    this.baseUrl,
     this.logger = const RepositoryLogger.dev(),
     this.interceptors = const [],
   });
+
+  /// The base URL used to resolve relative repository URLs.
+  final Uri? baseUrl;
 
   /// The HTTP adapter used to execute requests.
   final RepositoryHttpClient httpClient;
@@ -29,6 +33,7 @@ class RepositoryClient {
   Future<RepositoryHttpResponse> call({
     required RepositoryHttpRequest request,
   }) {
+    final resolvedRequest = request.resolveUrl(baseUrl);
     var handler = (RepositoryHttpRequest currentRequest) {
       return httpClient.call(request: currentRequest);
     };
@@ -40,6 +45,6 @@ class RepositoryClient {
       };
     }
 
-    return handler(request);
+    return handler(resolvedRequest);
   }
 }

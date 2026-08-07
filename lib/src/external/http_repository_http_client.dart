@@ -42,24 +42,24 @@ class HttpRepositoryHttpClient extends RepositoryHttpClient {
       }
 
       final response = switch (request.method) {
-        .get => await _client.get(request.url, headers: headers),
+        .get => await _client.get(request.resolvedUrl, headers: headers),
         .post => await _client.post(
-          request.url,
+          request.resolvedUrl,
           headers: headers,
           body: encodedBody,
         ),
         .patch => await _client.patch(
-          request.url,
+          request.resolvedUrl,
           headers: headers,
           body: encodedBody,
         ),
         .put => await _client.put(
-          request.url,
+          request.resolvedUrl,
           headers: headers,
           body: encodedBody,
         ),
         .delete => await _client.delete(
-          request.url,
+          request.resolvedUrl,
           headers: headers,
           body: encodedBody,
         ),

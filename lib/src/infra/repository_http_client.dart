@@ -3,6 +3,7 @@ import 'dart:io' show HttpClientRequest;
 
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
+import 'package:repository/src/repository_url.dart';
 
 /// A type alias for bearer token String.
 /// Notice that this is just the token, without the `Bearer` prefix.
@@ -100,7 +101,20 @@ class RepositoryHttpRequest {
   });
 
   /// The url of the request.
-  final Uri url;
+  final RepositoryUrl url;
+
+  /// The absolute URL resolved by `RepositoryClient` before transport.
+  Uri get resolvedUrl => url.resolve(null);
+
+  /// Returns a copy whose URL has been resolved against [baseUrl].
+  RepositoryHttpRequest resolveUrl(Uri? baseUrl) {
+    return RepositoryHttpRequest(
+      url: RepositoryUrl.absolute(url.resolve(baseUrl).toString()),
+      method: method,
+      body: body,
+      headers: headers,
+    );
+  }
 
   /// The method of the request.
   final RepositoryHttpMethod method;
@@ -123,7 +137,7 @@ class RepositoryHttpMockedRequest extends Equatable {
   const RepositoryHttpMockedRequest({required this.url, required this.method});
 
   /// The url of the request.
-  final Uri url;
+  final RepositoryUrl url;
 
   /// The method of the request.
   final RepositoryHttpMethod method;

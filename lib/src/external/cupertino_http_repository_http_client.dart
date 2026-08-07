@@ -42,24 +42,24 @@ class CupertinoHttpRepositoryHttpClient extends RepositoryHttpClient {
       }
 
       final response = switch (request.method) {
-        .get => await client.get(request.url, headers: headers),
+        .get => await client.get(request.resolvedUrl, headers: headers),
         .post => await client.post(
-          request.url,
+          request.resolvedUrl,
           headers: headers,
           body: encodedBody,
         ),
         .patch => await client.patch(
-          request.url,
+          request.resolvedUrl,
           headers: headers,
           body: encodedBody,
         ),
         .put => await client.put(
-          request.url,
+          request.resolvedUrl,
           headers: headers,
           body: encodedBody,
         ),
         .delete => await client.delete(
-          request.url,
+          request.resolvedUrl,
           headers: headers,
           body: encodedBody,
         ),

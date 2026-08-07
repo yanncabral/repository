@@ -12,6 +12,7 @@ import 'package:repository/src/repositories/http_repository.dart';
 import 'package:repository/src/repository_action.dart';
 import 'package:repository/src/repository_client.dart';
 import 'package:repository/src/repository_interceptor.dart';
+import 'package:repository/src/repository_url.dart';
 import 'package:retry/retry.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -59,7 +60,7 @@ abstract class BaseRepository<Data, Actions> {
 
   /// {@macro http_repository}
   factory BaseRepository.http({
-    required Uri endpoint,
+    required RepositoryUrl endpoint,
     required RepositoryActionsFactory<Actions> actions,
     RepositoryClient? client,
     Data Function(String json)? fromJson,
@@ -86,12 +87,14 @@ abstract class BaseRepository<Data, Actions> {
 
   /// Configures the client used by repositories created without an override.
   static void config({
+    required Uri baseUrl,
     required RepositoryHttpClient httpClient,
     required RepositoryCacheStorage storage,
     RepositoryLogger logger = const RepositoryLogger.dev(),
     List<RepositoryInterceptor> interceptors = const [],
   }) {
     _client = RepositoryClient(
+      baseUrl: baseUrl,
       httpClient: httpClient,
       storage: storage,
       logger: logger,

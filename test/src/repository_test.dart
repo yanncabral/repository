@@ -62,7 +62,7 @@ class _TestRepository extends Repository<int, NoRepositoryActions> {
   _TestRepository(RepositoryClient client)
     : super(
         client: client,
-        endpoint: Uri.parse('https://example.com/value'),
+        endpoint: const .absolute('https://example.com/value'),
         resolveOnCreate: false,
       );
 

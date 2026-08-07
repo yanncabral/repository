@@ -105,7 +105,7 @@ class _TransactionsRepository
   _TransactionsRepository(RepositoryClient client)
     : super(
         client: client,
-        endpoint: Uri.parse('https://example.com/transactions'),
+        endpoint: const .absolute('https://example.com/transactions'),
         fromJson: (json) => [json],
         resolveOnCreate: false,
       );
@@ -116,7 +116,7 @@ class _TransactionsRepository
       run: () async {
         final response = await request(
           RepositoryHttpRequest(
-            url: Uri.parse('https://example.com/transactions'),
+            url: const .absolute('https://example.com/transactions'),
             method: RepositoryHttpMethod.post,
             body: {'title': title},
           ),
@@ -134,7 +134,7 @@ class _SessionRepository extends Repository<String?, _SessionActions> {
   _SessionRepository(RepositoryClient client)
     : super(
         client: client,
-        endpoint: Uri.parse('https://example.com/session'),
+        endpoint: const .absolute('https://example.com/session'),
         fromJson: (json) => json,
         resolveOnCreate: false,
       );
@@ -144,8 +144,8 @@ class _SessionRepository extends Repository<String?, _SessionActions> {
     logout: () => executeAction<void>(
       run: () async {
         await request(
-          RepositoryHttpRequest(
-            url: Uri.parse('https://example.com/session'),
+          const RepositoryHttpRequest(
+            url: .absolute('https://example.com/session'),
             method: RepositoryHttpMethod.delete,
           ),
         );
@@ -161,7 +161,7 @@ class _FailingRepository extends Repository<List<String>, _FailingActions> {
   _FailingRepository(RepositoryClient client)
     : super(
         client: client,
-        endpoint: Uri.parse('https://example.com/transactions'),
+        endpoint: const .absolute('https://example.com/transactions'),
         fromJson: (json) => [json],
         resolveOnCreate: false,
       );
@@ -181,7 +181,7 @@ class _ConflictRepository extends Repository<List<String>, _ConflictActions> {
   _ConflictRepository(RepositoryClient client)
     : super(
         client: client,
-        endpoint: Uri.parse('https://example.com/items'),
+        endpoint: const .absolute('https://example.com/items'),
         fromJson: (json) => [json],
         resolveOnCreate: false,
       );
@@ -191,8 +191,8 @@ class _ConflictRepository extends Repository<List<String>, _ConflictActions> {
     acceptConflict: () => executeAction(
       run: () async {
         final response = await request(
-          RepositoryHttpRequest(
-            url: Uri.parse('https://example.com/items'),
+          const RepositoryHttpRequest(
+            url: .absolute('https://example.com/items'),
             method: RepositoryHttpMethod.post,
           ),
           successfulCondition: (response) => response.statusCode == 409,

@@ -20,3 +20,4 @@ export 'src/repository_action.dart';
 export 'src/repository_client.dart';
 export 'src/repository_flutter.dart';
 export 'src/repository_interceptor.dart';
+export 'src/repository_url.dart';
