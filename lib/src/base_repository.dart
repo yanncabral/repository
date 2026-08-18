@@ -16,16 +16,6 @@ import 'package:repository/src/repository_url.dart';
 import 'package:retry/retry.dart';
 import 'package:rxdart/rxdart.dart';
 
-/// A [BaseRepository] that can be backpropagated to a remote source.
-/// It is useful when you want to save data to a remote source
-/// though a repository.
-/// For example, you can use this mixin to save data to a remote API
-/// when a user updates a profile.
-mixin MutatorRepositoryMixin<Data, Actions> on BaseRepository<Data, Actions> {
-  /// Propagates data to a remote source and updates the stream.
-  Future<void> mutate(Data data);
-}
-
 /// A [BaseRepository] is a class that holds data and provides a stream.
 /// It can be used to fetch data from a remote source, cache it, and provide a
 /// stream of that data.

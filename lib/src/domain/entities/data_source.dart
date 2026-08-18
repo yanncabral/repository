@@ -6,7 +6,6 @@ enum RepositoryDatasource {
   /// The data is coming from the local cache.
   local,
 
-  /// The data was injected by the `update` method
-  /// of `MutatorRepositoryMixin`.
+  /// The data was emitted optimistically by an action or repository update.
   optimistic,
 }

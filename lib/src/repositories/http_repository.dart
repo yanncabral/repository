@@ -38,8 +38,7 @@ import 'package:repository/src/repository_url.dart';
 /// }
 /// ```
 /// {@endtemplate}
-class Repository<Data, Actions> extends BaseRepository<Data, Actions>
-    with MutatorRepositoryMixin<Data, Actions> {
+class Repository<Data, Actions> extends BaseRepository<Data, Actions> {
   /// Creates an [Repository] that fetches data from an endpoint.
   ///
   /// The [endpoint] is the only required parameter when used directly.
@@ -59,7 +58,6 @@ class Repository<Data, Actions> extends BaseRepository<Data, Actions>
     super.autoRefreshInterval,
     this.tag,
     this._name,
-    this._mutate,
     this.method = RepositoryHttpMethod.get,
     super.dependencies,
   }) : super();
@@ -69,7 +67,6 @@ class Repository<Data, Actions> extends BaseRepository<Data, Actions>
   final String? _name;
   final Data Function(String json)? _fromJson;
   final FutureOr<bool> Function(Exception exception)? _shouldRetryCondition;
-  final Future<void> Function(Data data)? _mutate;
 
   /// The endpoint to fetch data from.
   /// This is the only required parameter.
@@ -181,14 +178,5 @@ class Repository<Data, Actions> extends BaseRepository<Data, Actions>
   FutureOr<bool> shouldRetry(Exception exception) {
     return _shouldRetryCondition?.call(exception) ??
         exception is NetworkUnavailableException;
-  }
-
-  @override
-  Future<void> mutate(Data data) async {
-    if (_mutate != null) {
-      return _mutate(data);
-    } else {
-      throw UnimplementedError('Mutate method not implemented');
-    }
   }
 }
