@@ -8,6 +8,8 @@
 * Add external typed action factories whose runs receive `RepositoryClient`,
   return `Either`, and update repository state only on `Right`.
 * Merge the Flutter integration into the main `repository` package.
+* Pass the complete `RepositoryState<Data>` to `RepositoryBuilder` callbacks
+  so consumers retain state metadata and handle states exhaustively.
 * Add repository dependencies, nullable resolution, hydration coordination,
   and exception-safe fibers.
 * Add multi-method HTTP requests, request bodies, mocks, token builders,

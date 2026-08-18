@@ -4,9 +4,50 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:repository/repository.dart';
 
 void main() {
+  testWidgets('builder exposes the complete empty repository state', (
+    tester,
+  ) async {
+    final repository = Repository<List<String>, _ItemActions>(
+      client: RepositoryClient(
+        httpClient: const _ItemHttpClient(),
+        storage: _InMemoryCacheStorage(),
+      ),
+      endpoint: const .absolute('https://example.com/items'),
+      fromJson: (json) => [json],
+      actions: _itemActions,
+      resolveOnCreate: false,
+    );
+    RepositoryState<List<String>>? receivedState;
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: RepositoryBuilder(
+          repository: repository,
+          builder: (context, state, actions) {
+            receivedState = state;
+            return const Text('Empty');
+          },
+        ),
+      ),
+    );
+
+    expect(receivedState, const RepositoryState<List<String>>.empty());
+    expect(
+      receivedState,
+      isA<RepositoryStateEmpty<List<String>>>().having(
+        (state) => state.isLoading,
+        'isLoading',
+        isFalse,
+      ),
+    );
+    repository.dispose();
+  });
+
   testWidgets('builder exposes typed actions and rebuilds after an action', (
     tester,
   ) async {
+    final receivedStates = <RepositoryState<List<String>>>[];
     final repository = Repository<List<String>, _ItemActions>(
       client: RepositoryClient(
         httpClient: const _ItemHttpClient(),
@@ -24,11 +65,17 @@ void main() {
         textDirection: TextDirection.ltr,
         child: RepositoryBuilder(
           repository: repository,
-          builder: (context, data, actions) {
+          builder: (context, state, actions) {
+            receivedStates.add(state);
             return GestureDetector(
               key: const Key('create'),
               onTap: actions.create.call,
-              child: Text(data?.join(', ') ?? 'Loading'),
+              child: Text(
+                switch (state) {
+                  RepositoryStateReady(data: final data) => data.join(', '),
+                  RepositoryStateEmpty() => 'Loading',
+                },
+              ),
             );
           },
         ),
@@ -36,11 +83,31 @@ void main() {
     );
 
     expect(find.text('Existing'), findsOneWidget);
+    expect(
+      receivedStates.last,
+      isA<RepositoryStateReady<List<String>>>()
+          .having((state) => state.data, 'data', ['Existing'])
+          .having(
+            (state) => state.source,
+            'source',
+            RepositoryDatasource.remote,
+          ),
+    );
 
     await tester.tap(find.byKey(const Key('create')));
     await tester.pump();
 
     expect(find.text('Existing, Created'), findsOneWidget);
+    expect(
+      receivedStates.last,
+      isA<RepositoryStateReady<List<String>>>()
+          .having((state) => state.data, 'data', ['Existing', 'Created'])
+          .having(
+            (state) => state.source,
+            'source',
+            RepositoryDatasource.optimistic,
+          ),
+    );
     repository.dispose();
   });
 }

@@ -10,7 +10,7 @@ import 'package:repository/src/domain/entities/repository_state.dart';
 typedef RepositoryBuilderBuilder<Data, Actions> =
     Widget Function(
       BuildContext context,
-      Data? snapshot,
+      RepositoryState<Data> state,
       Actions actions,
     );
 
@@ -24,11 +24,9 @@ typedef RepositoryBuilderBuilder<Data, Actions> =
 ///
 /// To use this widget, you must provide a repository and a builder function.
 /// The builder function is called whenever the repository changes. It is
-/// passed the latest data and typed actions, and it must return a widget.
-///
-/// If the repository is not ready, the builder function is called with a null
-/// data value. This can happen when the repository has not yet fetched any
-/// data, or when the repository is in an error state.
+/// passed the complete latest state and typed actions, and it must return a
+/// widget. Consumers can exhaustively switch over the state while retaining
+/// metadata such as the data source and loading status.
 ///
 /// The following example shows how you might use this widget to build a list
 /// of items:
@@ -36,19 +34,18 @@ typedef RepositoryBuilderBuilder<Data, Actions> =
 /// ```dart
 /// RepositoryBuilder(
 ///   repository: itemRepository,
-///   builder: (context, items, actions) {
-///     if (items == null) {
-///      return const Center(child: CircularProgressIndicator());
-///    } else {
-///     return ListView(
-///       children: [
-///         for (var item in items)
-///           ListTile(
-///             title: Text(item.name),
-///             subtitle: Text(item.description),
-///           ),
-///       ],
-///     );
+///   builder: (context, state, actions) => switch (state) {
+///     RepositoryStateEmpty() =>
+///       const Center(child: CircularProgressIndicator()),
+///     RepositoryStateReady(data: final items) => ListView(
+///         children: [
+///           for (var item in items)
+///             ListTile(
+///               title: Text(item.name),
+///               subtitle: Text(item.description),
+///             ),
+///         ],
+///       ),
 ///   },
 /// );
 /// ```
@@ -65,8 +62,8 @@ class RepositoryBuilder<Data, RepositoryActionsType> extends StatelessWidget {
   final BaseRepository<Data, RepositoryActionsType> repository;
 
   /// The builder is called whenever this repository changes.
-  /// It is passed the latest data from the repository, and it
-  /// must return a widget.
+  /// It is passed the complete latest state and typed actions from the
+  /// repository, and it must return a widget.
   final RepositoryBuilderBuilder<Data, RepositoryActionsType> builder;
 
   @override
@@ -75,16 +72,11 @@ class RepositoryBuilder<Data, RepositoryActionsType> extends StatelessWidget {
       stream: repository.stream,
       initialData: repository.currentState,
       builder: (context, snapshot) {
-        final state = snapshot.data;
-
-        return switch (state) {
-          RepositoryStateReady(data: final data) => builder(
-            context,
-            data,
-            repository.actions,
-          ),
-          _ => builder(context, null, repository.actions),
-        };
+        return builder(
+          context,
+          snapshot.data ?? repository.currentState,
+          repository.actions,
+        );
       },
     );
   }

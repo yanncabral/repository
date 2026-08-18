@@ -177,21 +177,25 @@ Unexpected exceptions propagate and also skip `update`.
 ```dart
 RepositoryBuilder(
   repository: transactions,
-  builder: (context, data, actions) {
-    if (data == null) {
-      return const CircularProgressIndicator();
-    }
-
-    return ElevatedButton(
-      onPressed: () async {
-        final result = await actions.create(input);
-        result.fold(showCreateError, showCreatedTransaction);
-      },
-      child: const Text('Create transaction'),
-    );
+  builder: (context, state, actions) {
+    return switch (state) {
+      RepositoryStateEmpty() => const CircularProgressIndicator(),
+      RepositoryStateReady(data: final transactions, source: final source) =>
+        ElevatedButton(
+          onPressed: () async {
+            final result = await actions.create(input);
+            result.fold(showCreateError, showCreatedTransaction);
+          },
+          child: Text('Create transaction (${transactions.length}, $source)'),
+        ),
+    };
   },
 );
 ```
+
+The builder receives the complete `RepositoryState<Data>`, so the UI chooses
+how to render every state and retains metadata such as `isLoading` and the data
+`source`. The actions record remains inferred from the repository type.
 
 ## Migration from the monostate API
 
@@ -203,8 +207,9 @@ RepositoryBuilder(
 - Return `Either<Failure, Output>` from every action `run`.
 - Use `Repository<Data, NoRepositoryActions>` with `actions: (_) => ()` for
   repositories without custom actions.
-- The third `RepositoryBuilder` callback argument is now the typed actions
-  container instead of the repository.
+- The second `RepositoryBuilder` callback argument is the complete
+  `RepositoryState<Data>` instead of nullable data. The third argument is the
+  typed actions container instead of the repository.
 - Move request-wide authentication and retry behavior from repository mixins
   into a `RepositoryInterceptor`. A thin session mixin may still gate refresh
   and declare reactive session dependencies.
