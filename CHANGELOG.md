@@ -15,6 +15,8 @@
   and exception-safe fibers.
 * Add multi-method HTTP requests, request bodies, mocks, token builders,
   platform-specific clients, and network-unavailable errors.
+* Default requests with bodies to `Content-Type: application/json` while
+  preserving explicitly provided content types.
 * Make `ZipRepository` react to changes from its child repositories.
 * Replace the old `Repository` base class with `BaseRepository` and use
   `Repository` as the concrete HTTP implementation.
