@@ -25,6 +25,7 @@ class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
   @override
   Future<void> delete({required String key}) async {
     final hashedKey = hashKey(key);
+    _inMemoryCache.remove(hashedKey);
     await _box.delete(hashedKey);
   }
 
@@ -50,6 +51,7 @@ class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
 
   @override
   Future<void> clear() async {
+    _inMemoryCache.clear();
     await _box.clear();
   }
 }
