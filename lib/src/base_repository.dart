@@ -355,7 +355,7 @@ abstract class BaseRepository<Data, Actions> {
 
     // We do not need to persist if it comes from the cache or
     // if the data is optimistic.
-    if (datasource == RepositoryDatasource.remote) {
+    if (!_isDisposed && datasource == RepositoryDatasource.remote) {
       await client.storage.write(key: key, value: rawData);
     }
 
@@ -432,6 +432,9 @@ abstract class BaseRepository<Data, Actions> {
   /// This method is useful if you want to use Optimistic UI.
   /// You can update the data to the repository and refresh in a row.
   Future<void> update(Data Function(Data? data) resolver) async {
+    if (_isDisposed) {
+      return;
+    }
     // Call the resolver function to get the new data.
     final newData = resolver.call(currentValue);
     // Add the new data to the repository without refreshing yet.

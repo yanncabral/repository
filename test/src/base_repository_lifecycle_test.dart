@@ -115,6 +115,41 @@ void main() {
       },
     );
 
+    test('does not persist when disposed after emitting remote data', () async {
+      final storage = _TestStorage();
+      final emitStarted = Completer<void>();
+      final finishEmit = Completer<void>();
+      final repository = _DelayedEmitRepository(
+        client: _client(storage: storage),
+        emitStarted: emitStarted,
+        finishEmit: finishEmit,
+      );
+
+      final refresh = repository.refresh();
+      await emitStarted.future;
+      repository.dispose();
+      finishEmit.complete();
+
+      expect(await refresh, 42);
+      expect(storage.writes, isEmpty);
+    });
+
+    test('does not evaluate optimistic updates after dispose', () async {
+      final repository = _TestRepository(
+        client: _client(),
+        resolveOnCreate: false,
+      );
+      var resolverCalled = false;
+      repository.dispose();
+
+      await repository.update((_) {
+        resolverCalled = true;
+        return 42;
+      });
+
+      expect(resolverCalled, isFalse);
+    });
+
     test('does not emit cached data after dispose', () async {
       final cachedValue = Completer<String?>();
       final readStarted = Completer<void>();
@@ -225,6 +260,27 @@ class _TestRepository extends BaseRepository<int, NoRepositoryActions> {
 
   @override
   bool shouldRetry(Exception exception) => false;
+}
+
+class _DelayedEmitRepository extends _TestRepository {
+  _DelayedEmitRepository({
+    required super.client,
+    required this.emitStarted,
+    required this.finishEmit,
+  }) : super(resolveOnCreate: false);
+
+  final Completer<void> emitStarted;
+  final Completer<void> finishEmit;
+
+  @override
+  Future<void> emit({
+    required int data,
+    RepositoryDatasource datasource = RepositoryDatasource.local,
+  }) async {
+    await super.emit(data: data, datasource: datasource);
+    emitStarted.complete();
+    await finishEmit.future;
+  }
 }
 
 class _TestStorage extends RepositoryCacheStorage {
