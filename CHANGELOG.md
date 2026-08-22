@@ -16,6 +16,8 @@
   stale data when a background refresh fails.
 * Add repository dependencies, nullable resolution, hydration coordination,
   and exception-safe fibers.
+* Separate cache `hydrate()` from remote `refresh()` and expose the initial
+  `hydration` future instead of a coordination completer.
 * Add multi-method HTTP requests, request bodies, mocks, token builders,
   platform-specific clients, and network-unavailable errors.
 * Default requests with bodies to `Content-Type: application/json` while

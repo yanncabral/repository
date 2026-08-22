@@ -26,7 +26,7 @@ void main() {
       }, (error, _) => uncaughtErrors.add(error));
 
       expect(uncaughtErrors, isEmpty);
-      expect(logger.messages, contains(contains('initial hydration failed')));
+      expect(logger.messages, contains(contains('initialization failed')));
     });
 
     test('captures errors from automatic refresh and emits error', () async {

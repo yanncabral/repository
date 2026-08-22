@@ -99,7 +99,7 @@ class Repository<Data, Actions> extends BaseRepository<Data, Actions> {
   @override
   Future<String?> resolve() async {
     try {
-      await super.hydratationCompleter.future;
+      await super.hydration;
       final request = RepositoryHttpRequest(url: endpoint, method: method);
       final response = await client.call(request: request);
 

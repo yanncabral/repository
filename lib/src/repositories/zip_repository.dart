@@ -122,14 +122,10 @@ class ZipRepository<Data> extends BaseRepository<Data, NoRepositoryActions> {
 
   /// Gets the data from the cache, if it exists, and emits it to the stream.
   @override
-  Future<Data?> hydratate({bool refreshAfter = true}) async {
+  Future<Data?> hydrate() async {
     final stopwatch = Stopwatch()..start();
 
-    await Future.wait(
-      repositories.map(
-        (repository) => repository.hydratate(refreshAfter: refreshAfter),
-      ),
-    );
+    await Future.wait(repositories.map((repository) => repository.hydration));
 
     stopwatch.stop();
     client.logger.call(

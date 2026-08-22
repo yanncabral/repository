@@ -35,11 +35,15 @@ abstract class BaseRepository<Data, Actions> {
        dependencies = dependencies ?? <BaseRepository<dynamic, dynamic>>[] {
     track();
 
+    hydration = hydrate();
     _runDetached(
       () async {
-        await hydratate(refreshAfter: resolveOnCreate);
+        await hydration;
+        if (resolveOnCreate && !_isDisposed) {
+          await refresh();
+        }
       },
-      operation: 'initial hydration',
+      operation: 'initialization',
     );
 
     if (autoRefreshInterval != null) {
@@ -271,13 +275,16 @@ abstract class BaseRepository<Data, Actions> {
   @protected
   final refreshFiber = RepositoryFiber<Data?>();
 
-  /// The `Fiber` is used to avoid multiple hydratations at the same time.
+  /// The `Fiber` is used to avoid multiple hydrations at the same time.
   @protected
-  final _hydratationFiber = RepositoryFiber<Data?>();
+  final _hydrationFiber = RepositoryFiber<Data?>();
 
-  /// Completes after the first cache hydration attempt.
+  /// The first cache hydration started when the repository was created.
+  ///
+  /// Remote resolution waits for this future so cached content is always
+  /// considered first.
   @protected
-  final Completer<Data?> hydratationCompleter = Completer<Data?>();
+  late final Future<Data?> hydration;
 
   bool _isDisposed = false;
 
@@ -303,8 +310,8 @@ abstract class BaseRepository<Data, Actions> {
   /// Gets the data from the cache, if it exists, and emits it to the stream.
   @visibleForTesting
   @protected
-  Future<Data?> hydratate({bool refreshAfter = true}) async {
-    return _hydratationFiber.run(name: name, () async {
+  Future<Data?> hydrate() async {
+    return _hydrationFiber.run(name: name, () async {
       final stopwatch = Stopwatch()..start();
       try {
         final cachedDataString = await client.storage.read(key: key);
@@ -314,11 +321,7 @@ abstract class BaseRepository<Data, Actions> {
         }
 
         if (cachedDataString != null) {
-          final data = await _emitRawData(cachedDataString);
-          if (!hydratationCompleter.isCompleted) {
-            hydratationCompleter.complete(data);
-          }
-          return data;
+          return _emitRawData(cachedDataString);
         }
       } on FormatException catch (e) {
         client.logger.call(
@@ -333,14 +336,6 @@ abstract class BaseRepository<Data, Actions> {
           'Repository($name): '
           'hydrated in ${stopwatch.elapsedMilliseconds}ms',
         );
-
-        if (!hydratationCompleter.isCompleted) {
-          hydratationCompleter.complete(null);
-        }
-
-        if (refreshAfter) {
-          await refresh();
-        }
       }
       return null;
     });
