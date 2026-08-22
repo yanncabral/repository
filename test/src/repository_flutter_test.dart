@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:repository/repository.dart';
 
 void main() {
-  testWidgets('builder exposes the complete empty repository state', (
+  testWidgets('builder exposes the complete pending repository state', (
     tester,
   ) async {
     final repository = Repository<List<String>, _ItemActions>(
@@ -26,21 +26,14 @@ void main() {
           repository: repository,
           builder: (context, state, actions) {
             receivedState = state;
-            return const Text('Empty');
+            return const Text('Pending');
           },
         ),
       ),
     );
 
-    expect(receivedState, const RepositoryState<List<String>>.empty());
-    expect(
-      receivedState,
-      isA<RepositoryStateEmpty<List<String>>>().having(
-        (state) => state.isLoading,
-        'isLoading',
-        isFalse,
-      ),
-    );
+    expect(receivedState, const RepositoryState<List<String>>.pending());
+    expect(receivedState, isA<RepositoryStatePending<List<String>>>());
     repository.dispose();
   });
 
@@ -73,7 +66,7 @@ void main() {
               child: Text(
                 switch (state) {
                   RepositoryStateReady(data: final data) => data.join(', '),
-                  RepositoryStateEmpty() => 'Loading',
+                  RepositoryStatePending() => 'Loading',
                 },
               ),
             );

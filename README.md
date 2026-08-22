@@ -179,7 +179,7 @@ RepositoryBuilder(
   repository: transactions,
   builder: (context, state, actions) {
     return switch (state) {
-      RepositoryStateEmpty() => const CircularProgressIndicator(),
+      RepositoryStatePending() => const CircularProgressIndicator(),
       RepositoryStateReady(data: final transactions, source: final source) =>
         ElevatedButton(
           onPressed: () async {
@@ -194,8 +194,9 @@ RepositoryBuilder(
 ```
 
 The builder receives the complete `RepositoryState<Data>`, so the UI chooses
-how to render every state and retains metadata such as `isLoading` and the data
-`source`. The actions record remains inferred from the repository type.
+how to render pending content or ready data and retains metadata such as the
+data `source`. Request activity is independent from content availability. The
+actions record remains inferred from the repository type.
 
 ## Migration from the monostate API
 

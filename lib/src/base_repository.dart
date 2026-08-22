@@ -207,21 +207,24 @@ abstract class BaseRepository<Data, Actions> {
   }
 
   /// Getter for the last value of the stream.
-  /// Returns null if the stream is empty.
+  /// Returns null if content is still pending.
   Data? get currentValue {
-    return currentState.map(empty: (_) => null, ready: (state) => state.data);
+    return currentState.map(
+      pending: (_) => null,
+      ready: (state) => state.data,
+    );
   }
 
   /// Returns the current state of the repository.
   ///
   /// If the repository does not have any data, this method returns
-  /// [RepositoryState.empty]. Otherwise, it returns a [RepositoryState]
+  /// [RepositoryState.pending]. Otherwise, it returns a [RepositoryState]
   /// instance containing the current data.
   RepositoryState<Data> get currentState {
     final state = _controller.valueOrNull;
 
     if (state == null) {
-      return RepositoryState<Data>.empty();
+      return RepositoryState<Data>.pending();
     } else {
       return state;
     }
@@ -380,9 +383,9 @@ abstract class BaseRepository<Data, Actions> {
     _controller.add(RepositoryState.ready(data: data, source: datasource));
   }
 
-  /// Clears the cache and emits an empty state to the repository stream.
+  /// Clears the cache and emits a pending state to the repository stream.
   Future<void> clear() async {
-    _controller.add(const RepositoryState.empty());
+    _controller.add(const RepositoryState.pending());
     await clearCache();
   }
 
@@ -420,9 +423,9 @@ abstract class BaseRepository<Data, Actions> {
   /// The data will be refreshed when [refresh] is called.
   late final Stream<RepositoryState<Data>> stream = _controller.stream;
 
-  /// Emits only repository data, or `null` while the repository is empty.
+  /// Emits only repository data, or `null` while content is pending.
   late final Stream<Data?> dataStream = stream.map(
-    (state) => state.map(ready: (state) => state.data, empty: (_) => null),
+    (state) => state.map(ready: (state) => state.data, pending: (_) => null),
   );
 
   /// Repositories whose ready emissions invalidate this repository.

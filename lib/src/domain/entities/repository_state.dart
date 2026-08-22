@@ -8,9 +8,9 @@ sealed class RepositoryState<Data> extends Equatable {
   /// {@macro repository_state}
   const RepositoryState();
 
-  /// Creates a [RepositoryState] that indicates that the repository is empty.
-  const factory RepositoryState.empty({bool isLoading}) =
-      RepositoryStateEmpty<Data>;
+  /// Creates a [RepositoryState] that indicates that content is not available
+  /// yet.
+  const factory RepositoryState.pending() = RepositoryStatePending<Data>;
 
   /// Creates a [RepositoryState] that indicates that the repository is ready.
   /// It contains the data loaded by the repository.
@@ -21,37 +21,34 @@ sealed class RepositoryState<Data> extends Equatable {
   }) = RepositoryStateReady<Data>;
 
   /// Returns the value of the current state of the repository.
-  /// It can be either [RepositoryStateEmpty] or [RepositoryStateReady].
+  /// It can be either [RepositoryStatePending] or [RepositoryStateReady].
   /// It throws an [Exception] if the state is not handled.
   ///
   /// The [map] method is useful when you want to handle the state of the
-  /// repository. For example you can map empty state to a loading
+  /// repository. For example you can map pending state to a loading
   /// indicator and ready state to a list of items.
   Result? map<Result>({
     required Result Function(RepositoryStateReady<Data> state) ready,
-    Result? Function(RepositoryStateEmpty<Data> state)? empty,
+    Result? Function(RepositoryStatePending<Data> state)? pending,
   }) {
     final self = this;
 
     return switch (self) {
-      RepositoryStateEmpty<Data> _ => empty?.call(self),
+      RepositoryStatePending<Data> _ => pending?.call(self),
       RepositoryStateReady<Data> _ => ready.call(self),
     };
   }
 }
 
-/// {@template repository_state_empty}
-/// A [RepositoryState] that indicates that the repository is loading data.
+/// {@template repository_state_pending}
+/// A [RepositoryState] that indicates that content is not available yet.
 /// {@endtemplate}
-class RepositoryStateEmpty<Data> extends RepositoryState<Data> {
-  /// {@macro repository_state_empty}
-  const RepositoryStateEmpty({this.isLoading = false});
-
-  /// Whether the repository is loading data.
-  final bool isLoading;
+class RepositoryStatePending<Data> extends RepositoryState<Data> {
+  /// {@macro repository_state_pending}
+  const RepositoryStatePending();
 
   @override
-  List<Object?> get props => [isLoading, Data.runtimeType];
+  List<Object?> get props => [Data.runtimeType];
 }
 
 /// {@template repository_state_ready}

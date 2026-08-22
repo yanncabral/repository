@@ -35,7 +35,7 @@ typedef RepositoryBuilderBuilder<Data, Actions> =
 /// RepositoryBuilder(
 ///   repository: itemRepository,
 ///   builder: (context, state, actions) => switch (state) {
-///     RepositoryStateEmpty() =>
+///     RepositoryStatePending() =>
 ///       const Center(child: CircularProgressIndicator()),
 ///     RepositoryStateReady(data: final items) => ListView(
 ///         children: [

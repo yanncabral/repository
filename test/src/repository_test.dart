@@ -14,10 +14,10 @@ void main() {
       );
     });
 
-    test('should emit empty state on creation', () {
+    test('should expose pending state on creation', () {
       expect(
         repository.currentState,
-        const RepositoryState<int>.empty(),
+        const RepositoryState<int>.pending(),
       );
     });
 
