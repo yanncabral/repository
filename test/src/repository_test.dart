@@ -8,7 +8,7 @@ void main() {
     setUp(() {
       repository = _TestRepository(
         RepositoryClient(
-          httpClient: const HttpRepositoryHttpClient(),
+          httpClient: HttpRepositoryHttpClient(),
           storage: _RepositoryCacheStorageMock(),
         ),
       );

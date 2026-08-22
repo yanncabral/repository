@@ -27,6 +27,11 @@ abstract class RepositoryHttpClient {
   /// Makes a HTTP `get` request using [HttpClientRequest].
   Future<RepositoryHttpResponse> call({required RepositoryHttpRequest request});
 
+  /// Releases resources owned by this client.
+  ///
+  /// Implementations that do not own resources may keep the default no-op.
+  void close() {}
+
   /// Handle mocked requests if needed.
   @protected
   RepositoryHttpResponse? findMock(RepositoryHttpRequest request) {

@@ -47,4 +47,7 @@ class RepositoryClient {
 
     return handler(resolvedRequest);
   }
+
+  /// Releases resources owned by the configured HTTP adapter.
+  void close() => httpClient.close();
 }

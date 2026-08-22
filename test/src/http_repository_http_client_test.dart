@@ -100,65 +100,91 @@ void main() {
     });
   });
 
-  test('HttpRepositoryHttpClient sends the default JSON Content-Type', () {
-    return _withObservedRequest((url, observedRequest) async {
-      await const HttpRepositoryHttpClient()(
-        request: RepositoryHttpRequest(
-          url: RepositoryUrl.absolute(url.toString()),
+  test(
+    'HttpRepositoryHttpClient sends the default JSON Content-Type',
+    () async {
+      late http.Request sentRequest;
+      final transport = MockClient((request) async {
+        sentRequest = request;
+        return http.Response('{}', HttpStatus.ok);
+      });
+      final client = HttpRepositoryHttpClient(client: transport);
+
+      await client(
+        request: const RepositoryHttpRequest(
+          url: RepositoryUrl.absolute('https://example.com/resource'),
           method: RepositoryHttpMethod.post,
-          body: const {'name': 'Ada'},
+          body: {'name': 'Ada'},
         ),
       );
 
-      final received = await observedRequest;
-      expect(
-        received.headers.value(HttpHeaders.contentTypeHeader),
-        ContentType.json.mimeType,
-      );
-    });
-  });
+      expect(sentRequest.headers['Content-Type'], ContentType.json.mimeType);
+    },
+  );
 
   test(
     'HttpRepositoryHttpClient normalizes asynchronous network errors',
     () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final unavailableUrl = Uri.parse(
-        'http://${server.address.host}:${server.port}/resource',
-      );
-      await server.close(force: true);
+      final transport = MockClient((_) async {
+        throw http.ClientException('connection failed');
+      });
+      final client = HttpRepositoryHttpClient(client: transport);
 
       await expectLater(
-        const HttpRepositoryHttpClient()(
-          request: RepositoryHttpRequest(
-            url: RepositoryUrl.absolute(unavailableUrl.toString()),
+        client(
+          request: const RepositoryHttpRequest(
+            url: RepositoryUrl.absolute('https://example.com/resource'),
           ),
         ),
         throwsA(isA<NetworkUnavailableException>()),
       );
     },
   );
-}
 
-Future<void> _withObservedRequest(
-  Future<void> Function(Uri url, Future<HttpRequest> observedRequest) body,
-) async {
-  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-  final observedRequest = server.first;
-  final responseTask = observedRequest.then((request) async {
-    await request.drain<void>();
-    request.response
-      ..statusCode = HttpStatus.ok
-      ..write('{}');
-    await request.response.close();
-    return request;
+  test('HttpRepositoryHttpClient normalizes socket errors', () async {
+    final transport = MockClient((_) async {
+      throw const SocketException('connection failed');
+    });
+    final client = HttpRepositoryHttpClient(client: transport);
+
+    await expectLater(
+      client(
+        request: const RepositoryHttpRequest(
+          url: RepositoryUrl.absolute('https://example.com/resource'),
+        ),
+      ),
+      throwsA(isA<NetworkUnavailableException>()),
+    );
   });
 
-  try {
-    await body(
-      Uri.parse('http://${server.address.host}:${server.port}/resource'),
-      responseTask,
-    );
-  } finally {
-    await server.close(force: true);
+  test('keeps an injected client caller-owned by default', () {
+    final transport = _CloseTrackingClient();
+    HttpRepositoryHttpClient(client: transport).close();
+
+    expect(transport.isClosed, isFalse);
+  });
+
+  test('closes an injected client when ownership is transferred', () {
+    final transport = _CloseTrackingClient();
+    HttpRepositoryHttpClient(
+      client: transport,
+      closeClient: true,
+    ).close();
+
+    expect(transport.isClosed, isTrue);
+  });
+}
+
+class _CloseTrackingClient extends http.BaseClient {
+  bool isClosed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(const Stream.empty(), HttpStatus.ok);
+  }
+
+  @override
+  void close() {
+    isClosed = true;
   }
 }

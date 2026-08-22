@@ -52,6 +52,12 @@ Each repository captures the configured client when it is created. A later
 configuration does not change existing repositories. `client:` remains an
 optional per-repository override for tests or different infrastructure.
 
+`createPlatformHttpClient()` owns its internally created transport. To inject
+a package:http client, pass `client:`; it remains caller-owned by default, or
+set `closeClient: true` to transfer ownership to the adapter. Call `close()` on
+the adapter, or on a directly held `RepositoryClient`, during application
+shutdown.
+
 A read-only repository needs only an endpoint, decoder, and empty actions
 factory:
 
