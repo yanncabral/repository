@@ -11,8 +11,9 @@
 * Merge the Flutter integration into the main `repository` package.
 * Pass the complete `RepositoryState<Data>` to `RepositoryBuilder` callbacks
   so consumers retain state metadata and handle states exhaustively.
-* Model content availability as `RepositoryStatePending` or
-  `RepositoryStateReady`, independently from request activity.
+* Model content availability as `RepositoryStatePending`,
+  `RepositoryStateReady`, or `RepositoryStateError`, while preserving ready
+  stale data when a background refresh fails.
 * Add repository dependencies, nullable resolution, hydration coordination,
   and exception-safe fibers.
 * Add multi-method HTTP requests, request bodies, mocks, token builders,

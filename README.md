@@ -194,6 +194,7 @@ RepositoryBuilder(
           },
           child: Text('Create transaction (${transactions.length}, $source)'),
         ),
+      RepositoryStateError(error: final error) => Text('Error: $error'),
     };
   },
 );

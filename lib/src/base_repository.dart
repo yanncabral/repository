@@ -35,12 +35,22 @@ abstract class BaseRepository<Data, Actions> {
        dependencies = dependencies ?? <BaseRepository<dynamic, dynamic>>[] {
     track();
 
-    unawaited(hydratate(refreshAfter: resolveOnCreate));
+    _runDetached(
+      () async {
+        await hydratate(refreshAfter: resolveOnCreate);
+      },
+      operation: 'initial hydration',
+    );
 
     if (autoRefreshInterval != null) {
       timer = Timer.periodic(autoRefreshInterval!, (_) {
-        if (_controller.hasListener) {
-          unawaited(refresh());
+        if (!_isDisposed && _controller.hasListener) {
+          _runDetached(
+            () async {
+              await refresh();
+            },
+            operation: 'automatic refresh',
+          );
         }
       });
     }
@@ -101,6 +111,9 @@ abstract class BaseRepository<Data, Actions> {
 
   /// Adds a repository that triggers a refresh when it emits ready data.
   void addDependency(BaseRepository<dynamic, dynamic> dependency) {
+    if (_isDisposed) {
+      throw StateError('Cannot add a dependency to a disposed repository.');
+    }
     _unlistenToDependencies();
     dependencies.add(dependency);
     _listenToDependencies();
@@ -112,8 +125,13 @@ abstract class BaseRepository<Data, Actions> {
     _subscriptions.addAll(
       dependencies.map(
         (dependency) => dependency.stream.listen((state) {
-          if (state is RepositoryStateReady) {
-            unawaited(refresh());
+          if (!_isDisposed && state is RepositoryStateReady) {
+            _runDetached(
+              () async {
+                await refresh();
+              },
+              operation: 'dependency refresh',
+            );
           }
         }),
       ),
@@ -122,9 +140,27 @@ abstract class BaseRepository<Data, Actions> {
 
   void _unlistenToDependencies() {
     for (final subscription in _subscriptions) {
-      unawaited(subscription.cancel());
+      _runDetached(subscription.cancel, operation: 'dependency cancellation');
     }
     _subscriptions.clear();
+  }
+
+  void _runDetached(
+    Future<void> Function() callback, {
+    required String operation,
+  }) {
+    unawaited(() async {
+      try {
+        await callback();
+      } on Object catch (error) {
+        if (!_isDisposed) {
+          client.logger(
+            'Repository($name): $operation failed: $error',
+            level: RepositoryLoggingLevel.error,
+          );
+        }
+      }
+    }());
   }
 
   /// List of all repositories in memory. It's useful for debugging.
@@ -211,6 +247,7 @@ abstract class BaseRepository<Data, Actions> {
   Data? get currentValue {
     return currentState.map(
       pending: (_) => null,
+      error: (_) => null,
       ready: (state) => state.data,
     );
   }
@@ -242,14 +279,20 @@ abstract class BaseRepository<Data, Actions> {
   @protected
   final Completer<Data?> hydratationCompleter = Completer<Data?>();
 
+  bool _isDisposed = false;
+
   /// Disposes the repository. You should call this method when you're done
   /// using the repository.
   /// This method will cancel the timer and close the stream.
   /// You should not use the repository after calling this method.
   void dispose() {
+    if (_isDisposed) {
+      return;
+    }
+    _isDisposed = true;
     timer?.cancel();
     _unlistenToDependencies();
-    unawaited(_controller.close());
+    _runDetached(_controller.close, operation: 'stream disposal');
   }
 
   // Default methods
@@ -265,6 +308,10 @@ abstract class BaseRepository<Data, Actions> {
       final stopwatch = Stopwatch()..start();
       try {
         final cachedDataString = await client.storage.read(key: key);
+
+        if (_isDisposed) {
+          return null;
+        }
 
         if (cachedDataString != null) {
           final data = await _emitRawData(cachedDataString);
@@ -317,14 +364,29 @@ abstract class BaseRepository<Data, Actions> {
 
   /// Refreshes the repository from remote datasource.
   Future<Data?> refresh() async {
-    return retry(
-      // Run the refresh in a fiber to avoid multiple refreshes at the same time
-      () => refreshFiber.run(name: name, _refresh),
-      retryIf: shouldRetry,
-      onRetry: (exception) {
-        client.logger('Repository($name): Retrying refresh...');
-      },
-    );
+    if (_isDisposed) {
+      return null;
+    }
+    try {
+      return await retry(
+        // Run the refresh in a fiber to avoid multiple refreshes at the same
+        // time.
+        () => refreshFiber.run(name: name, _refresh),
+        retryIf: (exception) async {
+          return !_isDisposed && await shouldRetry(exception);
+        },
+        onRetry: (exception) {
+          client.logger('Repository($name): Retrying refresh...');
+        },
+      );
+    } on Object catch (error, stackTrace) {
+      if (!_isDisposed && currentState is! RepositoryStateReady<Data>) {
+        _controller.add(
+          RepositoryState.error(error: error, stackTrace: stackTrace),
+        );
+      }
+      rethrow;
+    }
   }
 
   /// Used to decide if the repository should retry after an error.
@@ -332,10 +394,16 @@ abstract class BaseRepository<Data, Actions> {
   FutureOr<bool> shouldRetry(Exception exception) => true;
 
   Future<Data?> _refresh() async {
+    if (_isDisposed) {
+      return null;
+    }
     // Save the current time to calculate the time it took to refresh the
     final before = DateTime.now();
     // Resolve the data from the remote source
     final rawData = await resolve();
+    if (_isDisposed) {
+      return null;
+    }
     // Decodes the raw data to the data that will be used in the stream
     // Emit the data to the stream and persist
     Data? data;
@@ -379,13 +447,18 @@ abstract class BaseRepository<Data, Actions> {
     required Data data,
     RepositoryDatasource datasource = RepositoryDatasource.local,
   }) async {
+    if (_isDisposed) {
+      return;
+    }
     client.logger('Emitting data to repository $name: $data');
     _controller.add(RepositoryState.ready(data: data, source: datasource));
   }
 
   /// Clears the cache and emits a pending state to the repository stream.
   Future<void> clear() async {
-    _controller.add(const RepositoryState.pending());
+    if (!_isDisposed) {
+      _controller.add(const RepositoryState.pending());
+    }
     await clearCache();
   }
 
@@ -423,9 +496,13 @@ abstract class BaseRepository<Data, Actions> {
   /// The data will be refreshed when [refresh] is called.
   late final Stream<RepositoryState<Data>> stream = _controller.stream;
 
-  /// Emits only repository data, or `null` while content is pending.
+  /// Emits only repository data, or `null` while content is unavailable.
   late final Stream<Data?> dataStream = stream.map(
-    (state) => state.map(ready: (state) => state.data, pending: (_) => null),
+    (state) => state.map(
+      ready: (state) => state.data,
+      pending: (_) => null,
+      error: (_) => null,
+    ),
   );
 
   /// Repositories whose ready emissions invalidate this repository.

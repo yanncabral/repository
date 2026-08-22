@@ -46,6 +46,7 @@ typedef RepositoryBuilderBuilder<Data, Actions> =
 ///             ),
 ///         ],
 ///       ),
+///     RepositoryStateError(error: final error) => ErrorWidget(error),
 ///   },
 /// );
 /// ```

@@ -65,7 +65,13 @@ class ZipRepository<Data> extends BaseRepository<Data, NoRepositoryActions> {
 
   Data _zipperInternal(List<RepositoryState<dynamic>> states) {
     final values = states
-        .map((e) => e.map(ready: (state) => state.data, pending: (_) => null))
+        .map(
+          (e) => e.map(
+            ready: (state) => state.data,
+            pending: (_) => null,
+            error: (_) => null,
+          ),
+        )
         .toList();
 
     return zipper(values);

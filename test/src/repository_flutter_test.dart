@@ -67,6 +67,7 @@ void main() {
                 switch (state) {
                   RepositoryStateReady(data: final data) => data.join(', '),
                   RepositoryStatePending() => 'Loading',
+                  RepositoryStateError(error: final error) => 'Error: $error',
                 },
               ),
             );
