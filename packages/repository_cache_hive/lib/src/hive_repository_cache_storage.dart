@@ -1,22 +1,22 @@
 import 'package:hive/hive.dart';
-import 'package:meta/meta.dart';
-import 'package:repository/src/infra/repository_cache_storage.dart';
+import 'package:repository/repository.dart';
 
 /// {@template hive_repository_cache_storage}
-/// A cache storage implementation that uses Hive.
-///
-/// This class stores the data in a [Box] using the hashed key as the key.
-/// The data is stored as a [String].
+/// A [RepositoryCacheStorage] backed by a Hive string box.
 /// {@endtemplate}
-class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
+final class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
   /// {@macro hive_repository_cache_storage}
-  HiveRepositoryCacheStorage({required this._box});
+  factory HiveRepositoryCacheStorage({required Box<String> box}) {
+    return HiveRepositoryCacheStorage._(box);
+  }
 
-  @protected
-  late final Box<String> _box;
+  HiveRepositoryCacheStorage._(this._box);
 
-  /// Creates a [HiveRepositoryCacheStorage]
-  /// with a default [Box] named `repository-caches`.
+  final Box<String> _box;
+
+  final Map<String, String> _inMemoryCache = {};
+
+  /// Opens the default `repository-caches` box.
   static Future<HiveRepositoryCacheStorage> create() async {
     final box = await Hive.openBox<String>('repository-caches');
     return HiveRepositoryCacheStorage(box: box);
@@ -28,8 +28,6 @@ class HiveRepositoryCacheStorage extends RepositoryCacheStorage {
     _inMemoryCache.remove(hashedKey);
     await _box.delete(hashedKey);
   }
-
-  final Map<String, String> _inMemoryCache = {};
 
   @override
   Future<String?> read({required String key}) async {

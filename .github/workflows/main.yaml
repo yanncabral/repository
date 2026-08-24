@@ -18,3 +18,24 @@ jobs:
 
   pana:
     uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/pana.yml@v1
+
+  repository_cache_hive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        working-directory: packages/repository_cache_hive
+        run: flutter pub get
+      - name: Check formatting
+        working-directory: packages/repository_cache_hive
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze
+        working-directory: packages/repository_cache_hive
+        run: flutter analyze --no-pub
+      - name: Test
+        working-directory: packages/repository_cache_hive
+        run: flutter test --no-pub

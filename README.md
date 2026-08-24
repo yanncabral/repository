@@ -27,6 +27,14 @@ dependencies:
   repository: ^4.0.0-dev.1
 ```
 
+Hive persistence is provided by the optional adapter package:
+
+```yaml
+dependencies:
+  repository: ^4.0.0-dev.1
+  repository_cache_hive: ^4.0.0-dev.1
+```
+
 Install it:
 
 ```sh
@@ -34,6 +42,13 @@ flutter pub get
 ```
 
 ## Configure repositories
+
+When using Hive, import its adapter separately:
+
+```dart
+import 'package:repository/repository.dart';
+import 'package:repository_cache_hive/repository_cache_hive.dart';
+```
 
 Configure the default client and the session lifecycle once before creating
 repositories:

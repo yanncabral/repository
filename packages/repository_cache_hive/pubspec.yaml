@@ -1,0 +1,19 @@
+name: repository_cache_hive
+description: A Hive cache storage adapter for the repository package.
+version: 4.0.0-dev.1
+homepage: https://github.com/yanncabral/repository
+repository: https://github.com/yanncabral/repository/tree/main/packages/repository_cache_hive
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+resolution: workspace
+
+dependencies:
+  hive: ^2.2.3
+  repository: ^4.0.0-dev.1
+
+dev_dependencies:
+  mocktail: ^1.0.4
+  test: ^1.25.8
+  very_good_analysis: ^10.0.0

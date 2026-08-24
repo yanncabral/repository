@@ -27,6 +27,8 @@
 * Make `ZipRepository` react to changes from its child repositories.
 * Replace the old `Repository` base class with `BaseRepository` and use
   `Repository` as the concrete HTTP implementation.
+* Move `HiveRepositoryCacheStorage` into the optional `repository_cache_hive`
+  adapter package so the core no longer depends on Hive.
 
 ## [3.0.0] - 2023-05-22
 

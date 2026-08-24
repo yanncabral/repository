@@ -6,6 +6,9 @@ homepage: https://github.com/yanncabral/repository
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+workspace:
+  - packages/repository_cache_hive
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -20,7 +23,6 @@ dependencies:
   equatable: ^2.0.7
   flutter:
     sdk: flutter
-  hive: ^2.2.3
   http: ^1.4.0
   meta: ^1.16.0
   retry: ^3.1.2

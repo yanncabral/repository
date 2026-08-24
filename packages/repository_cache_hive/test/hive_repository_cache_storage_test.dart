@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:repository/repository.dart';
+import 'package:repository_cache_hive/repository_cache_hive.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -36,4 +36,4 @@ void main() {
   });
 }
 
-class _MockBox extends Mock implements Box<String> {}
+final class _MockBox extends Mock implements Box<String> {}
