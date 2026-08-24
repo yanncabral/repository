@@ -35,18 +35,62 @@ flutter pub get
 
 ## Configure repositories
 
-Configure the default client once before creating repositories:
+Configure the default client and the session lifecycle once before creating
+repositories:
 
 ```dart
-BaseRepository.config(
+final repositories = BaseRepository.config(
   baseUrl: Uri.parse('https://api.example.com/v1/'),
   httpClient: createPlatformHttpClient(),
   storage: await HiveRepositoryCacheStorage.create(),
-  interceptors: [
-    authenticationInterceptor,
-  ],
+
+  sessionManager: .bearer(
+    storage: secureSessionStorage,
+
+    refresh: .post(
+      endpoint: .relative('/auth/refresh'),
+      body: (input) => {
+        'refresh_token': input.session.refreshToken,
+      },
+      decode: (json, current) => .new(
+        accessToken: json['access_token']! as String,
+        refreshToken:
+            json['refresh_token'] as String? ?? current.refreshToken,
+      ),
+    ),
+
+    authentication: (auth) => (
+      password: auth.password(
+        endpoint: .relative('/auth/login'),
+        body: (input) => {
+          'email': input.username,
+          'password': input.password,
+        },
+        decode: (json) => .new(
+          accessToken: json['access_token']! as String,
+          refreshToken: json['refresh_token'] as String?,
+        ),
+      ),
+    ),
+  ),
+);
+
+await repositories.auth.password.signIn(
+  username: email,
+  password: password,
 );
 ```
+
+The callback returned by `authentication` remains fully typed. In a bearer
+manager every terminal decoder must return `RepositorySessionBearer`; in a
+cookies manager it must return `RepositorySessionCookies`. Authentication
+endpoints do not share a default decoder because each backend response may
+have a different shape.
+
+`RepositorySessionStorage` is intentionally separate from repository cache
+storage. Use a secure platform-backed implementation for persisted access and
+refresh tokens. `InMemoryRepositorySessionStorage` is available for tests and
+sessions that should not survive an application restart.
 
 Each repository captures the configured client when it is created. A later
 configuration does not change existing repositories. `client:` remains an
@@ -121,9 +165,57 @@ class HeaderInterceptor implements RepositoryInterceptor {
 }
 ```
 
-Authentication remains application-specific. A session interceptor can read
-the current token, refresh the session on `401`, and replay once. This keeps
-authentication consistent for repository refreshes and custom actions.
+When a session manager is configured, its interceptor is installed
+automatically after the declared application interceptors. Token resolution
+and refresh are single-flight, and an unauthorized request is replayed at most
+once.
+
+## Repository access
+
+Repositories use authenticated access by default. Without a session they stay
+pending and do not call their endpoint. Login activates existing authenticated
+repositories; logout clears their in-memory data and scoped cache.
+
+```dart
+final profile = Repository<Profile, NoRepositoryActions>(
+  endpoint: .relative('/profile'),
+  fromJson: Profile.fromJson,
+  actions: (_) => (),
+);
+
+final appVersion = Repository<AppVersion, NoRepositoryActions>(
+  endpoint: .relative('/version'),
+  access: .unauthenticated,
+  fromJson: AppVersion.fromJson,
+  actions: (_) => (),
+);
+```
+
+Remote logout is optional. `signOut()` always removes local credentials and
+authenticated repository data, even if a configured logout endpoint fails:
+
+```dart
+await repositories.session.signOut();
+```
+
+Cookie sessions use the same typed authentication methods and a user-supplied
+`RepositoryCookieJar`:
+
+```dart
+sessionManager: .cookies(
+  cookieJar: cookieJar,
+  authentication: (auth) => (
+    password: auth.password(
+      endpoint: .relative('/auth/login'),
+      body: (input) => {
+        'email': input.username,
+        'password': input.password,
+      },
+      decode: (json) => .new(identity: json['user_id'] as String?),
+    ),
+  ),
+),
+```
 
 ## Actions
 
@@ -218,9 +310,9 @@ actions record remains inferred from the repository type.
 - The second `RepositoryBuilder` callback argument is the complete
   `RepositoryState<Data>` instead of nullable data. The third argument is the
   typed actions container instead of the repository.
-- Move request-wide authentication and retry behavior from repository mixins
-  into a `RepositoryInterceptor`. A thin session mixin may still gate refresh
-  and declare reactive session dependencies.
+- Remove session mixins and repeated session dependencies. Configure a
+  `RepositorySessionManager` once and mark only public repositories with
+  `access: .unauthenticated`.
 
 ---
 
