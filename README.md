@@ -1,5 +1,16 @@
 # Repository
 
+## Git hooks
+
+Enable the repository hooks once per worktree:
+
+```sh
+git config --worktree core.hooksPath .githooks
+```
+
+Before each push, the pre-push hook runs `fvm flutter analyze` and checks
+formatting with `fvm dart format`. The push is blocked if either check fails.
+
 [![style: very good analysis][very_good_analysis_badge]][very_good_analysis_link]
 [![Powered by Mason](https://img.shields.io/endpoint?url=https%3A%2F%2Ftinyurl.com%2Fmason-badge)](https://github.com/felangel/mason)
 [![License: MIT][license_badge]][license_link]

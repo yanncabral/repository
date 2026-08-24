@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -eu
+
+echo "Running Flutter analysis..."
+fvm flutter analyze
+
+echo "Checking Dart formatting..."
+fvm dart format --output=none --set-exit-if-changed .
+
+echo "Pre-push checks passed."
