@@ -800,7 +800,7 @@ abstract class _TypedRepositorySessionManager<
           body: operation.body(RefreshSession(session)),
         );
         final response = await _callPublic(request, includeCredentials: true);
-        if (response.statusCode == 401 || response.statusCode == 403) {
+        if (response.statusCode == 401) {
           await _clearLocal();
           return _RefreshResult.expired;
         }
@@ -891,7 +891,7 @@ final class _RepositoryAuthenticationInterceptor
     var authorized = await manager._authorize(request, session);
     var response = await next(authorized);
     await manager._capture(authorized, response);
-    if (response.statusCode == 401 || response.statusCode == 403) {
+    if (response.statusCode == 401) {
       final refreshed = await manager._refreshSession();
       if (refreshed == _RefreshResult.refreshed) {
         authorized = await manager._authorize(request, manager.current);

@@ -143,6 +143,143 @@ void main() {
     );
   });
 
+  test('403 does not refresh or clear the bearer session', () async {
+    var refreshCalls = 0;
+    final transport = _RoutingHttpClient((request) async {
+      switch (request.resolvedUrl.path) {
+        case '/login':
+          return _jsonResponse({
+            'access_token': 'access',
+            'refresh_token': 'refresh',
+          });
+        case '/refresh':
+          refreshCalls++;
+          return _jsonResponse({'access_token': 'new-access'});
+        default:
+          return const RepositoryHttpResponse(
+            statusCode: 403,
+            headers: {},
+            body: '',
+          );
+      }
+    });
+    final environment = BaseRepository.config(
+      baseUrl: Uri.parse('https://api.example.com'),
+      httpClient: transport,
+      storage: _CacheStorage(),
+      sessionManager: .bearer(
+        refresh: .post(
+          endpoint: const .relative('/refresh'),
+          body: (input) => {
+            'refresh_token': input.session.refreshToken,
+          },
+          decode: (json, current) => .new(
+            accessToken: json['access_token']! as String,
+            refreshToken: current.refreshToken,
+          ),
+        ),
+        authentication: (auth) => (
+          password: auth.password(
+            endpoint: const .relative('/login'),
+            body: (input) => {
+              'username': input.username,
+              'password': input.password,
+            },
+            decode: (json) => .new(
+              accessToken: json['access_token']! as String,
+              refreshToken: json['refresh_token'] as String?,
+            ),
+          ),
+        ),
+      ),
+    );
+    await environment.auth.password.signIn(username: 'user', password: 'pass');
+
+    final response = await environment.client.call(
+      request: const RepositoryHttpRequest(url: .relative('/private')),
+    );
+
+    expect(response.statusCode, 403);
+    expect(refreshCalls, 0);
+    expect(environment.session.current, isA<RepositorySessionBearer>());
+    expect(
+      (environment.session.current! as RepositorySessionBearer).accessToken,
+      'access',
+    );
+  });
+
+  test('403 from refresh preserves the bearer session', () async {
+    var privateCalls = 0;
+    var refreshCalls = 0;
+    final transport = _RoutingHttpClient((request) async {
+      switch (request.resolvedUrl.path) {
+        case '/login':
+          return _jsonResponse({
+            'access_token': 'access',
+            'refresh_token': 'refresh',
+          });
+        case '/refresh':
+          refreshCalls++;
+          return const RepositoryHttpResponse(
+            statusCode: 403,
+            headers: {},
+            body: '',
+          );
+        default:
+          privateCalls++;
+          return const RepositoryHttpResponse(
+            statusCode: 401,
+            headers: {},
+            body: '',
+          );
+      }
+    });
+    final environment = BaseRepository.config(
+      baseUrl: Uri.parse('https://api.example.com'),
+      httpClient: transport,
+      storage: _CacheStorage(),
+      sessionManager: .bearer(
+        refresh: .post(
+          endpoint: const .relative('/refresh'),
+          body: (input) => {
+            'refresh_token': input.session.refreshToken,
+          },
+          decode: (json, current) => .new(
+            accessToken: json['access_token']! as String,
+            refreshToken: current.refreshToken,
+          ),
+        ),
+        authentication: (auth) => (
+          password: auth.password(
+            endpoint: const .relative('/login'),
+            body: (input) => {
+              'username': input.username,
+              'password': input.password,
+            },
+            decode: (json) => .new(
+              accessToken: json['access_token']! as String,
+              refreshToken: json['refresh_token'] as String?,
+            ),
+          ),
+        ),
+      ),
+    );
+    await environment.auth.password.signIn(username: 'user', password: 'pass');
+
+    final response = await environment.client.call(
+      request: const RepositoryHttpRequest(url: .relative('/private')),
+    );
+
+    expect(response.statusCode, 401);
+    expect(privateCalls, 1);
+    expect(refreshCalls, 1);
+    expect(environment.session.current, isA<RepositorySessionBearer>());
+    expect(
+      (environment.session.current! as RepositorySessionBearer).accessToken,
+      'access',
+    );
+  });
+
   test('signOut always deletes the local bearer session', () async {
     final sessionStorage = InMemoryRepositorySessionStorage();
     final environment = BaseRepository.config(
