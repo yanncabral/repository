@@ -415,7 +415,7 @@ abstract class BaseRepository<Data, Actions> {
         }
 
         if (cachedDataString != null) {
-          return _emitRawData(cachedDataString);
+          return await _emitRawData(cachedDataString);
         }
       } on FormatException catch (e) {
         client.logger.call(
