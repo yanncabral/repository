@@ -5,7 +5,7 @@ void main() {
   test('repository uses the globally configured client by default', () async {
     final transport = _FakeHttpClient('42');
     final storage = _InMemoryCacheStorage();
-    BaseRepository.config(
+    BaseRepository.config<NoRepositoryAuthentication>(
       baseUrl: Uri.parse('https://example.com'),
       httpClient: transport,
       storage: storage,
@@ -27,7 +27,7 @@ void main() {
 
   test('repository captures the configured client when created', () async {
     final firstTransport = _FakeHttpClient('1');
-    BaseRepository.config(
+    BaseRepository.config<NoRepositoryAuthentication>(
       baseUrl: Uri.parse('https://example.com'),
       httpClient: firstTransport,
       storage: _InMemoryCacheStorage(),
@@ -40,7 +40,7 @@ void main() {
     );
 
     final secondTransport = _FakeHttpClient('2');
-    BaseRepository.config(
+    BaseRepository.config<NoRepositoryAuthentication>(
       baseUrl: Uri.parse('https://example.com'),
       httpClient: secondTransport,
       storage: _InMemoryCacheStorage(),

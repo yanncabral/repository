@@ -2,6 +2,7 @@ import 'package:repository/src/infra/repository_cache_storage.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
 import 'package:repository/src/repository_interceptor.dart';
+import 'package:repository/src/repository_session.dart';
 
 /// Configures the shared infrastructure used by repositories.
 class RepositoryClient {
@@ -12,6 +13,7 @@ class RepositoryClient {
     this.baseUrl,
     this.logger = const RepositoryLogger.dev(),
     this.interceptors = const [],
+    this.sessionRuntime,
   });
 
   /// The base URL used to resolve relative repository URLs.
@@ -28,6 +30,26 @@ class RepositoryClient {
 
   /// Middleware applied to every HTTP request in declaration order.
   final List<RepositoryInterceptor> interceptors;
+
+  /// Session lifecycle used by this authenticated client.
+  final RepositorySessionRuntime? sessionRuntime;
+
+  /// Whether an authenticated repository request may currently run.
+  Future<bool> canAccess() => sessionRuntime?.canAccess() ?? Future.value(true);
+
+  /// Current session generation, used to reject stale asynchronous work.
+  int get sessionGeneration => sessionRuntime?.generation ?? 0;
+
+  /// Returns the cache key scoped to the current authenticated identity.
+  String cacheKey(String key) {
+    final runtime = sessionRuntime;
+    if (runtime == null) {
+      return key;
+    }
+    final namespace =
+        runtime.cacheNamespace ?? 'generation-${runtime.generation}';
+    return 'session:$namespace:$key';
+  }
 
   /// Executes an HTTP request using the configured adapter.
   Future<RepositoryHttpResponse> call({

@@ -6,6 +6,7 @@ import 'package:repository/src/domain/exceptions/network_unavailable_exception.d
 import 'package:repository/src/domain/exceptions/unexpected_status_code_exception.dart';
 import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
+import 'package:repository/src/repository_session.dart';
 import 'package:repository/src/repository_url.dart';
 
 /// {@template http_repository}
@@ -52,6 +53,7 @@ class Repository<Data, Actions> extends BaseRepository<Data, Actions> {
     required this.endpoint,
     super.client,
     super.actions,
+    super.access = RepositoryAccess.authenticated,
     this._fromJson,
     this._shouldRetryCondition,
     super.resolveOnCreate,

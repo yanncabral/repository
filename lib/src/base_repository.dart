@@ -10,8 +10,10 @@ import 'package:repository/src/infra/repository_http_client.dart';
 import 'package:repository/src/infra/repository_logger.dart';
 import 'package:repository/src/repositories/http_repository.dart';
 import 'package:repository/src/repository_action.dart';
+import 'package:repository/src/repository_authentication.dart';
 import 'package:repository/src/repository_client.dart';
 import 'package:repository/src/repository_interceptor.dart';
+import 'package:repository/src/repository_session.dart';
 import 'package:repository/src/repository_url.dart';
 import 'package:retry/retry.dart';
 import 'package:rxdart/rxdart.dart';
@@ -27,10 +29,11 @@ abstract class BaseRepository<Data, Actions> {
   BaseRepository({
     RepositoryClient? client,
     RepositoryActionsFactory<Data, Actions>? actions,
+    this.access = RepositoryAccess.authenticated,
     this.autoRefreshInterval,
     bool resolveOnCreate = true,
     List<BaseRepository<dynamic, dynamic>>? dependencies,
-  }) : client = client ?? _configuredClient(),
+  }) : client = client ?? _configuredClient(access),
        _createActions = actions,
        dependencies = dependencies ?? <BaseRepository<dynamic, dynamic>>[] {
     track();
@@ -73,6 +76,7 @@ abstract class BaseRepository<Data, Actions> {
     String? tag,
     bool resolveOnCreate = true,
     String? name,
+    RepositoryAccess access = RepositoryAccess.authenticated,
   }) {
     return Repository<Data, Actions>(
       client: client,
@@ -84,33 +88,104 @@ abstract class BaseRepository<Data, Actions> {
       tag: tag,
       autoRefreshInterval: autoRefreshInterval,
       resolveOnCreate: resolveOnCreate,
+      access: access,
     );
   }
 
   static RepositoryClient? _client;
+  static RepositoryClient? _publicClient;
 
   /// Configures the client used by repositories created without an override.
-  static void config({
+  static RepositoryEnvironment<Authentication> config<Authentication>({
     required Uri baseUrl,
     required RepositoryHttpClient httpClient,
     required RepositoryCacheStorage storage,
     RepositoryLogger logger = const RepositoryLogger.dev(),
     List<RepositoryInterceptor> interceptors = const [],
+    RepositorySessionManager<Authentication>? sessionManager,
   }) {
-    _client = RepositoryClient(
+    final publicClient = RepositoryClient(
       baseUrl: baseUrl,
       httpClient: httpClient,
       storage: storage,
       logger: logger,
       interceptors: interceptors,
     );
+    _publicClient = publicClient;
+    if (sessionManager == null) {
+      _client = publicClient;
+      return RepositoryEnvironment(
+        client: publicClient,
+        publicClient: publicClient,
+      );
+    }
+
+    sessionManager.bindClient(
+      publicClient,
+      onSessionChange: _handleSessionChange,
+    );
+    final authenticatedClient = RepositoryClient(
+      baseUrl: baseUrl,
+      httpClient: httpClient,
+      storage: storage,
+      logger: logger,
+      interceptors: [...interceptors, sessionManager.repositoryInterceptor],
+      sessionRuntime: sessionManager,
+    );
+    _client = authenticatedClient;
+    return RepositoryEnvironment(
+      client: authenticatedClient,
+      publicClient: publicClient,
+      sessionManager: sessionManager,
+    );
   }
 
-  static RepositoryClient _configuredClient() {
-    return _client ??
+  static RepositoryClient _configuredClient(RepositoryAccess access) {
+    final client = switch (access) {
+      RepositoryAccess.authenticated => _client,
+      RepositoryAccess.unauthenticated => _publicClient,
+    };
+    return client ??
         (throw StateError(
           'BaseRepository.config must be called before creating a repository.',
         ));
+  }
+
+  static Future<void> _handleSessionChange(
+    RepositorySessionChange change,
+  ) async {
+    final configuredClient = _client;
+    if (configuredClient == null) {
+      return;
+    }
+    final targets = repositories
+        .map((reference) => reference.target)
+        .whereType<BaseRepository<dynamic, dynamic>>()
+        .where(
+          (repository) =>
+              !repository._isDisposed &&
+              repository.access == RepositoryAccess.authenticated &&
+              identical(repository.client, configuredClient),
+        );
+    for (final repository in targets) {
+      switch (change) {
+        case RepositorySessionChange.authenticated:
+          repository._runDetached(
+            () async => repository.refresh(),
+            operation: 'session authentication refresh',
+          );
+        case RepositorySessionChange.identityChanged:
+          await repository.clear();
+          repository._runDetached(
+            () async => repository.refresh(),
+            operation: 'session identity refresh',
+          );
+        case RepositorySessionChange.signedOut:
+          await repository.clear();
+        case RepositorySessionChange.refreshed:
+          break;
+      }
+    }
   }
 
   /// Adds a repository that triggers a refresh when it emits ready data.
@@ -176,7 +251,7 @@ abstract class BaseRepository<Data, Actions> {
   @protected
   void track() {
     final alreadyTracked = BaseRepository.repositories.any(
-      (ref) => ref.target?.key == key,
+      (ref) => identical(ref.target, this),
     );
 
     if (!alreadyTracked) {
@@ -217,6 +292,9 @@ abstract class BaseRepository<Data, Actions> {
   /// Infrastructure shared by this repository.
   final RepositoryClient client;
 
+  /// Whether this repository uses the configured authenticated client.
+  final RepositoryAccess access;
+
   final RepositoryActionsFactory<Data, Actions>? _createActions;
 
   /// Typed operations exposed by this repository.
@@ -231,11 +309,12 @@ abstract class BaseRepository<Data, Actions> {
     required RepositoryActionRun<Failure, Output> run,
     FutureOr<Data> Function(Data? current, Output output)? update,
   }) async {
+    final generation = client.sessionGeneration;
     final result = await run(client);
     await result.fold<Future<void>>(
       (_) async {},
       (output) async {
-        if (update != null) {
+        if (update != null && client.sessionGeneration == generation) {
           await emit(
             data: await update(currentValue, output),
             datasource: RepositoryDatasource.optimistic,
@@ -305,16 +384,31 @@ abstract class BaseRepository<Data, Actions> {
   // Default methods
 
   /// Clears the cache.
-  Future<void> clearCache() => client.storage.delete(key: key);
+  Future<void> clearCache() async {
+    final currentKey = client.cacheKey(key);
+    final previousKey = _lastCacheKey;
+    await client.storage.delete(key: currentKey);
+    if (previousKey != null && previousKey != currentKey) {
+      await client.storage.delete(key: previousKey);
+    }
+    _lastCacheKey = null;
+  }
+
+  String? _lastCacheKey;
 
   /// Gets the data from the cache, if it exists, and emits it to the stream.
   @visibleForTesting
   @protected
   Future<Data?> hydrate() async {
     return _hydrationFiber.run(name: name, () async {
+      if (!await client.canAccess()) {
+        return null;
+      }
       final stopwatch = Stopwatch()..start();
       try {
-        final cachedDataString = await client.storage.read(key: key);
+        final cacheKey = client.cacheKey(key);
+        _lastCacheKey = cacheKey;
+        final cachedDataString = await client.storage.read(key: cacheKey);
 
         if (_isDisposed) {
           return null;
@@ -351,7 +445,9 @@ abstract class BaseRepository<Data, Actions> {
     // We do not need to persist if it comes from the cache or
     // if the data is optimistic.
     if (!_isDisposed && datasource == RepositoryDatasource.remote) {
-      await client.storage.write(key: key, value: rawData);
+      final cacheKey = client.cacheKey(key);
+      _lastCacheKey = cacheKey;
+      await client.storage.write(key: cacheKey, value: rawData);
     }
 
     return data;
@@ -360,6 +456,9 @@ abstract class BaseRepository<Data, Actions> {
   /// Refreshes the repository from remote datasource.
   Future<Data?> refresh() async {
     if (_isDisposed) {
+      return null;
+    }
+    if (!await client.canAccess()) {
       return null;
     }
     try {
@@ -394,9 +493,10 @@ abstract class BaseRepository<Data, Actions> {
     }
     // Save the current time to calculate the time it took to refresh the
     final before = DateTime.now();
+    final generation = client.sessionGeneration;
     // Resolve the data from the remote source
     final rawData = await resolve();
-    if (_isDisposed) {
+    if (_isDisposed || client.sessionGeneration != generation) {
       return null;
     }
     // Decodes the raw data to the data that will be used in the stream
