@@ -1,3 +1,35 @@
+## [4.0.0-dev.1] - Unreleased
+
+* Add configurable, isolated `RepositoryClient` instances.
+* Add `BaseRepository.config` for a default client captured by new repository
+  instances while preserving optional per-repository overrides.
+* Add base URL resolution with typed relative and absolute repository URLs.
+* Add ordered `RepositoryInterceptor` middleware with replay support.
+* Add external typed action factories whose runs receive `RepositoryClient`,
+  return `Either`, and update repository state only on `Right`.
+* Remove the legacy `mutate` interface; repository writes now use typed actions.
+* Merge the Flutter integration into the main `repository` package.
+* Pass the complete `RepositoryState<Data>` to `RepositoryBuilder` callbacks
+  so consumers retain state metadata and handle states exhaustively.
+* Model content availability as `RepositoryStatePending`,
+  `RepositoryStateReady`, or `RepositoryStateError`, while preserving ready
+  stale data when a background refresh fails.
+* Add repository dependencies, nullable resolution, hydration coordination,
+  and exception-safe fibers.
+* Separate cache `hydrate()` from remote `refresh()` and expose the initial
+  `hydration` future instead of a coordination completer.
+* Add multi-method HTTP requests, request bodies, mocks, token builders,
+  platform-specific clients, and network-unavailable errors.
+* Default requests with bodies to `Content-Type: application/json` while
+  preserving explicitly provided content types.
+* Make the package:http transport injectable with explicit ownership and a
+  uniform client close lifecycle.
+* Make `ZipRepository` react to changes from its child repositories.
+* Replace the old `Repository` base class with `BaseRepository` and use
+  `Repository` as the concrete HTTP implementation.
+* Move `HiveRepositoryCacheStorage` into the optional `repository_cache_hive`
+  adapter package so the core no longer depends on Hive.
+
 ## [3.0.0] - 2023-05-22
 
 * Major rewrite of all repository package to be more efficient and gracefully

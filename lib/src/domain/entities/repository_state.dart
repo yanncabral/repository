@@ -8,10 +8,9 @@ sealed class RepositoryState<Data> extends Equatable {
   /// {@macro repository_state}
   const RepositoryState();
 
-  /// Creates a [RepositoryState] that indicates that the repository is empty.
-  const factory RepositoryState.empty({
-    bool isLoading,
-  }) = RepositoryStateEmpty<Data>;
+  /// Creates a [RepositoryState] that indicates that content is not available
+  /// yet.
+  const factory RepositoryState.pending() = RepositoryStatePending<Data>;
 
   /// Creates a [RepositoryState] that indicates that the repository is ready.
   /// It contains the data loaded by the repository.
@@ -21,40 +20,44 @@ sealed class RepositoryState<Data> extends Equatable {
     required RepositoryDatasource source,
   }) = RepositoryStateReady<Data>;
 
+  /// Creates a state for a load failure without previous content to display.
+  const factory RepositoryState.error({
+    required Object error,
+    required StackTrace stackTrace,
+  }) = RepositoryStateError<Data>;
+
   /// Returns the value of the current state of the repository.
-  /// It can be either [RepositoryStateEmpty] or [RepositoryStateReady].
+  /// It can be [RepositoryStatePending], [RepositoryStateReady], or
+  /// [RepositoryStateError].
   /// It throws an [Exception] if the state is not handled.
   ///
   /// The [map] method is useful when you want to handle the state of the
-  /// repository. For example you can map empty state to a loading
+  /// repository. For example you can map pending state to a loading
   /// indicator and ready state to a list of items.
   Result? map<Result>({
     required Result Function(RepositoryStateReady<Data> state) ready,
-    Result? Function(RepositoryStateEmpty<Data> state)? empty,
+    Result? Function(RepositoryStatePending<Data> state)? pending,
+    Result? Function(RepositoryStateError<Data> state)? error,
   }) {
     final self = this;
 
     return switch (self) {
-      RepositoryStateEmpty<Data> _ => empty?.call(self),
+      RepositoryStatePending<Data> _ => pending?.call(self),
       RepositoryStateReady<Data> _ => ready.call(self),
+      RepositoryStateError<Data> _ => error?.call(self),
     };
   }
 }
 
-/// {@template repository_state_empty}
-/// A [RepositoryState] that indicates that the repository is loading data.
+/// {@template repository_state_pending}
+/// A [RepositoryState] that indicates that content is not available yet.
 /// {@endtemplate}
-class RepositoryStateEmpty<Data> extends RepositoryState<Data> {
-  /// {@macro repository_state_empty}
-  const RepositoryStateEmpty({
-    this.isLoading = false,
-  });
-
-  /// Whether the repository is loading data.
-  final bool isLoading;
+class RepositoryStatePending<Data> extends RepositoryState<Data> {
+  /// {@macro repository_state_pending}
+  const RepositoryStatePending();
 
   @override
-  List<Object?> get props => [isLoading, Data.runtimeType];
+  List<Object?> get props => [Data.runtimeType];
 }
 
 /// {@template repository_state_ready}
@@ -63,10 +66,7 @@ class RepositoryStateEmpty<Data> extends RepositoryState<Data> {
 /// {@endtemplate}
 class RepositoryStateReady<Data> extends RepositoryState<Data> {
   /// {@macro repository_state_ready}
-  const RepositoryStateReady({
-    required this.data,
-    required this.source,
-  });
+  const RepositoryStateReady({required this.data, required this.source});
 
   /// The data loaded by the repository.
   final Data data;
@@ -76,4 +76,21 @@ class RepositoryStateReady<Data> extends RepositoryState<Data> {
 
   @override
   List<Object?> get props => [data, source, Data.runtimeType];
+}
+
+/// {@template repository_state_error}
+/// A [RepositoryState] for a load failure without previous content to display.
+/// {@endtemplate}
+class RepositoryStateError<Data> extends RepositoryState<Data> {
+  /// {@macro repository_state_error}
+  const RepositoryStateError({required this.error, required this.stackTrace});
+
+  /// The error raised while loading content.
+  final Object error;
+
+  /// The stack trace associated with [error].
+  final StackTrace stackTrace;
+
+  @override
+  List<Object?> get props => [error, stackTrace, Data.runtimeType];
 }

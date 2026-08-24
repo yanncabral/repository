@@ -3,25 +3,22 @@ import 'package:test/test.dart';
 
 void main() {
   group('Repository', () {
-    late Repository<int> repository;
+    late Repository<int, NoRepositoryActions> repository;
 
     setUp(() {
-      Repository.storage = _RepositoryCacheStorageMock();
-      repository = _TestRepository();
-    });
-
-    test('should emit empty state on creation', () {
-      expect(
-        repository.currentState,
-        const RepositoryState<int>.empty(),
+      repository = _TestRepository(
+        RepositoryClient(
+          httpClient: HttpRepositoryHttpClient(),
+          storage: _RepositoryCacheStorageMock(),
+        ),
       );
     });
 
-    test('should emit ready state after hydrating', () async {
-      await repository.hydrate();
-
-      expect(repository.currentState, isA<RepositoryState<int>>());
-      expect(repository.currentValue, equals(42));
+    test('should expose pending state on creation', () {
+      expect(
+        repository.currentState,
+        const RepositoryState<int>.pending(),
+      );
     });
 
     test('should emit ready state after refreshing', () async {
@@ -61,7 +58,15 @@ class _RepositoryCacheStorageMock extends RepositoryCacheStorage {
   }
 }
 
-class _TestRepository extends Repository<int> {
+class _TestRepository extends Repository<int, NoRepositoryActions> {
+  _TestRepository(RepositoryClient client)
+    : super(
+        client: client,
+        actions: (_) => (),
+        endpoint: const .absolute('https://example.com/value'),
+        resolveOnCreate: false,
+      );
+
   @override
   Future<String> resolve() async {
     return '42';

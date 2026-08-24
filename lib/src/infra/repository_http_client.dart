@@ -1,8 +1,16 @@
-import 'dart:io';
+import 'dart:async';
+import 'dart:io' show HttpClientRequest;
+
+import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
+import 'package:repository/src/repository_url.dart';
 
 /// A type alias for bearer token String.
 /// Notice that this is just the token, without the `Bearer` prefix.
 typedef BearerToken = String;
+
+/// Builds the bearer token used to authenticate an HTTP request.
+typedef TokenBuilder = FutureOr<BearerToken?> Function();
 
 /// {@template repository_http_client}
 /// Abstract class for HTTP client to be used in http `Repositories`.
@@ -11,21 +19,30 @@ typedef BearerToken = String;
 /// {@endtemplate}
 abstract class RepositoryHttpClient {
   /// {@macro repository_http_client}
-  const RepositoryHttpClient();
+  const RepositoryHttpClient({this.mocks});
+
+  /// Responses returned without reaching the transport.
+  final Map<RepositoryHttpMockedRequest, RepositoryHttpResponse>? mocks;
 
   /// Makes a HTTP `get` request using [HttpClientRequest].
-  Future<RepositoryHttpResponse> get({
-    required RepositoryHttpRequest request,
-  });
+  Future<RepositoryHttpResponse> call({required RepositoryHttpRequest request});
 
-  /// It's used to get the token to be used in the
-  /// `Authorization` header. It's also a static variable,
-  /// so you can set it once and it will be used in all requests.
-  static TokenBuilder? tokenBuilder;
+  /// Releases resources owned by this client.
+  ///
+  /// Implementations that do not own resources may keep the default no-op.
+  void close() {}
+
+  /// Handle mocked requests if needed.
+  @protected
+  RepositoryHttpResponse? findMock(RepositoryHttpRequest request) {
+    final mock = RepositoryHttpMockedRequest(
+      url: request.url,
+      method: request.method,
+    );
+
+    return mocks?[mock];
+  }
 }
-
-/// A type alias for a function that returns a [BearerToken].
-typedef TokenBuilder = Future<BearerToken?> Function();
 
 /// {@template repository_http_response}
 /// A class that represents the response from a HTTP request.
@@ -56,27 +73,95 @@ class RepositoryHttpResponse {
   }
 }
 
+/// HTTP methods supported by repository requests.
+enum RepositoryHttpMethod {
+  /// An HTTP GET request.
+  get,
+
+  /// An HTTP POST request.
+  post,
+
+  /// An HTTP PUT request.
+  put,
+
+  /// An HTTP DELETE request.
+  delete,
+
+  /// An HTTP PATCH request.
+  patch,
+}
+
 /// {@template repository_http_request}
 /// This is used by [RepositoryHttpClient] to make HTTP requests.
 /// You can use this class to create your own HTTP client,
 /// or just use the default one.
-/// But notice that Repositories will only use `GET` method.
 /// {@endtemplate}
 class RepositoryHttpRequest {
   /// {@macro repository_http_request}
   const RepositoryHttpRequest({
     required this.url,
-    Map<String, String>? headers,
-  }) : headers = headers ?? const {};
+    this.method = RepositoryHttpMethod.get,
+    this.body = const {},
+    this.headers = const {},
+  });
 
   /// The url of the request.
-  final Uri url;
+  final RepositoryUrl url;
+
+  /// The absolute URL resolved by `RepositoryClient` before transport.
+  Uri get resolvedUrl => url.resolve(null);
+
+  /// Returns a copy whose URL has been resolved against [baseUrl].
+  RepositoryHttpRequest resolveUrl(Uri? baseUrl) {
+    return RepositoryHttpRequest(
+      url: RepositoryUrl.absolute(url.resolve(baseUrl).toString()),
+      method: method,
+      body: body,
+      headers: headers,
+    );
+  }
+
+  /// Returns a copy with selected fields replaced.
+  RepositoryHttpRequest copyWith({
+    RepositoryUrl? url,
+    RepositoryHttpMethod? method,
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+  }) {
+    return RepositoryHttpRequest(
+      url: url ?? this.url,
+      method: method ?? this.method,
+      body: body ?? this.body,
+      headers: headers ?? this.headers,
+    );
+  }
+
+  /// The method of the request.
+  final RepositoryHttpMethod method;
 
   /// The headers of the request.
   final Map<String, String> headers;
+
+  /// The body of the request.
+  final Map<String, dynamic>? body;
 
   @override
   String toString() {
     return 'RepositoryHttpRequest{url: $url, headers: $headers}';
   }
+}
+
+/// Identifies a mocked request by URL and method.
+class RepositoryHttpMockedRequest extends Equatable {
+  /// Creates a mocked request identifier.
+  const RepositoryHttpMockedRequest({required this.url, required this.method});
+
+  /// The url of the request.
+  final RepositoryUrl url;
+
+  /// The method of the request.
+  final RepositoryHttpMethod method;
+
+  @override
+  List<Object?> get props => [url, method];
 }

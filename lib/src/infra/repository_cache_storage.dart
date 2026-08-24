@@ -21,10 +21,7 @@ abstract class RepositoryCacheStorage {
   Future<String?> read({required String key});
 
   /// Write a value to the cache.
-  Future<void> write({
-    required String key,
-    required String value,
-  });
+  Future<void> write({required String key, required String value});
 
   /// Clears the cache.
   Future<void> clear();
