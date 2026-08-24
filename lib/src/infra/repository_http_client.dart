@@ -121,6 +121,21 @@ class RepositoryHttpRequest {
     );
   }
 
+  /// Returns a copy with selected fields replaced.
+  RepositoryHttpRequest copyWith({
+    RepositoryUrl? url,
+    RepositoryHttpMethod? method,
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+  }) {
+    return RepositoryHttpRequest(
+      url: url ?? this.url,
+      method: method ?? this.method,
+      body: body ?? this.body,
+      headers: headers ?? this.headers,
+    );
+  }
+
   /// The method of the request.
   final RepositoryHttpMethod method;
 
