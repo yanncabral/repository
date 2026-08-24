@@ -341,7 +341,23 @@ Out of the box, on each pull request and push, the CI `formats`, `lints`, and `t
 
 ## Running Tests 🧪
 
-To run all unit tests:
+The packages are managed as a Pub Workspace orchestrated by Melos. Install the
+workspace dependencies and run all quality checks with:
+
+```sh
+flutter pub get
+dart run melos run quality
+```
+
+Individual workspace commands are also available:
+
+```sh
+dart run melos run format
+dart run melos run analyze
+dart run melos run test
+```
+
+To run only the main package tests with coverage:
 
 ```sh
 flutter test --coverage

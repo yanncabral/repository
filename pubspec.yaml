@@ -9,9 +9,33 @@ environment:
 workspace:
   - packages/repository_cache_hive
 
+melos:
+  useRootAsPackage: true
+  scripts:
+    format:
+      description: Check formatting in every package.
+      exec: dart format --output=none --set-exit-if-changed lib test
+    analyze:
+      description: Analyze every package.
+      exec:
+        command: flutter analyze --no-pub
+        concurrency: 1
+    test:
+      description: Run tests in every package.
+      exec:
+        command: flutter test --no-pub
+        concurrency: 1
+    quality:
+      description: Format, analyze, and test the complete workspace.
+      steps:
+        - format
+        - analyze
+        - test
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  melos: ^8.3.0
   mocktail: ^1.0.4
   test: ^1.25.8
   very_good_analysis: ^10.0.0
