@@ -2,9 +2,13 @@
 
 ## Git hooks
 
-Enable the repository hooks once per worktree:
+The hooks require [FVM](https://fvm.app/documentation/getting-started/installation)
+and use the Flutter version pinned in `.fvmrc`. Install that SDK and enable the
+repository hooks once per worktree:
 
 ```sh
+fvm install
+git config extensions.worktreeConfig true
 git config --worktree core.hooksPath .githooks
 ```
 

@@ -10,6 +10,9 @@ pubspec.lock
 .flutter-plugins-dependencies
 .flutter-plugins
 
+# Local FVM SDK symlink and metadata
+.fvm/
+
 # Conventional directory for build outputs
 build/
 
