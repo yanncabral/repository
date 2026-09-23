@@ -1,6 +1,6 @@
 name: repository
 description: A reactive repository toolkit for Flutter with HTTP, caching, dependency tracking, auto refresh, and UI integration.
-version: 4.0.0-dev.1
+version: 4.0.1
 homepage: https://github.com/yanncabral/repository
 
 environment:
