@@ -2,9 +2,6 @@
 
 Comprehensive guide to the `repository` package and its optional adapters.
 
-> **Status:** The 4.0 API is under active development. Expect breaking changes
-> before a stable release.
-
 ## Table of contents
 
 1. [Overview](#1-overview)
@@ -61,7 +58,7 @@ The package includes Flutter integration, so consumers need a Flutter SDK.
 
 ```yaml
 dependencies:
-  repository: ^4.0.0-dev.1
+  repository: ^4.0.0
 ```
 
 Install dependencies:
@@ -82,8 +79,8 @@ Hive support is intentionally kept outside the core package:
 
 ```yaml
 dependencies:
-  repository: ^4.0.0-dev.1
-  repository_cache_hive: ^4.0.0-dev.1
+  repository: ^4.0.0
+  repository_cache_hive: ^4.0.0
 ```
 
 ```dart

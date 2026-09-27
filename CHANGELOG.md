@@ -1,4 +1,4 @@
-## [4.0.0-dev.1] - Unreleased
+## 4.0.0 - 2026-09-13
 
 * Add configurable, isolated `RepositoryClient` instances.
 * Add `BaseRepository.config` for a default client captured by new repository

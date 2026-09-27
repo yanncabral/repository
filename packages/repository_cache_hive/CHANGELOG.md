@@ -1,3 +1,3 @@
-## 4.0.0-dev.1
+## 4.0.0 - 2026-09-13
 
 - Extract `HiveRepositoryCacheStorage` from `package:repository`.
